@@ -3,9 +3,9 @@ import btor2
 
 grammar = r"""
 
-    num: INT                                                                 
+    num: UINT                                                                 
 
-    uint: INT                                      
+    uint: UINT                                      
 
     symbol: CNAME                                  
 
@@ -13,7 +13,7 @@ grammar = r"""
 
     sid: num                                        
 
-    const: "const" sid INT                        
+    const: "const" sid UINT                        
 
     constd: "constd" sid ["-"] uint                 
 
@@ -51,6 +51,7 @@ grammar = r"""
     
     line:    comment                                                        ->comment       
             | node [symbol] [comment]                                       ->line
+            | "\n"                                                          ->newline
 
     btor:    (line "\n")+                                                   ->btor
              
@@ -73,13 +74,15 @@ grammar = r"""
         | "write"
     OPIDX.2: "sext" | "uext" | "slice"
     BCFO.2: "bad" | "constraint" | "fair" | "output"
+    INT: DIGIT+
+    UINT.2: INT | "-" INT
   
     
     %import common.NEWLINE
     %import common.CNAME
     %import common.WS
     %import common.ESCAPED_STRING
-    %import common.INT
+    %import common.DIGIT
     %ignore WHITESPACE
 
 """
@@ -171,7 +174,6 @@ class BtorTransformer(Transformer):
         return btor2.StateKind(nid, state)
 
     def node_opidx(self, nid, opT, sid, opdNid, ns1, ns2):
-        print(1)
         return btor2.IndOpKind(nid, opT, sid, opdNid, ns1, ns2)
 
     def node_op(self, nid, opT, sid, *nids):
@@ -195,8 +197,11 @@ class BtorTransformer(Transformer):
     def line(self, node, symbol, comment):
         return node
 
+    def newline(self):
+        return "\n"
+
     def btor(self, *line):
-        return line
+        return btor2.Btor2(line)
 
 murphi_parser = Lark(grammar, start="btor", parser="lalr", transformer=BtorTransformer())
 
@@ -207,5 +212,5 @@ def parse_file(filename):
 
 
 if __name__ == "__main__":
-    prot = parse_file("case/test.btor")
+    prot = parse_file("case/at.6.prop1-back-serstep.btor2")
     print(1)

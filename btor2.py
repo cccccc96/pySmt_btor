@@ -514,5 +514,5 @@ class Btor2():
     def __init__(self, nodes):
         self.node_map = {}
         for node in nodes:
-            assert(isinstance(node, nodeType))
-            self.node_map[node.nodeID] = node
+            if isinstance(node, nodeType):
+                self.node_map[node.nodeID.id] = node
