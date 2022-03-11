@@ -1,164 +1,63 @@
 from lark import Lark, Transformer, v_args, exceptions
-#
-# grammar = r"""
-#     ?num: /[1-9][0-9]*/
-#     ?uint: INT
-#     ?symbol: CNAME
-#     ?nid: num
-#     ?sid: num
-#     ?const: 'const' sid /[0-1]+/
-#     ?constd: 'constd' sid  uint
-#             | 'constd' sid "-" uint
-#     ?consth: 'consth' sid /[0-9a-fA-F]+/
-#     ?input: /['input''one''ones''zero']/ sid
-#             | const
-#             | constd
-#             | consth
-#     ?state: 'state' sid
-#     ?bitvec: 'bitvec' num
-#     ?array: 'array' sid sid
-#     ?opidx:'ext'|'slice'
-#     ?op: 'not'|'inc'|'dec'|'neg'|'redand'|'redor'|
-#     ?node: sid 'sort' array
-#         | sid 'sort' bitvec
-#         | nid input
-#         | nid state
-#         | nid opidx sid nid uint uint
-#         | nid opidx sid nid uint
-#         | nid op sid nid nid nid
-#         | nid op sid nid nid
-#         | nid op sid nid
-#         | nid 'init' sid nid nid
-#         | nid 'next' sid nid nid
-#         | nid 'bad' nid
-#         | nid 'constraint' nid
-#         | nid 'fair' nid
-#         | nid 'output' nid
-#         | nid 'justice' num /nid+/
-#     ?line:  node
-#         | node symbol
-#     ?btor: btor line
-#         | line
-#
-#
-#     ?const_decl: CNAME ":" INT
-#     ?consts: "const" (const_decl ";")*                    -> consts
-#
-#     ?type_constr: CNAME                                   -> var_type
-#         | "boolean"                                       -> boolean_type
-#         | "1" ".." CNAME                                  -> scalarset_type
-#         | "scalarset" "(" CNAME ")"                       -> scalarset_type
-#         | "union" "{" type_constr ("," type_constr)* "}"  -> union_type
-#         | "enum" "{" CNAME ("," CNAME)* "}"               -> enum_type
-#         | "array" "[" type_constr "]" "of" type_constr    -> array_type
-#         | "record" (type_decl ";")* "end"                 -> record_type
-#     ?type_decl: CNAME ":" type_constr
-#     ?types: "type" (type_decl ";")*                       -> types
-#
-#     ?var_decl: CNAME ":" type_constr
-#     ?vars: "var" (var_decl ";")*                          -> vars
-#
-#     ?atom_expr: CNAME                                     -> unknown_expr
-#         | atom_expr "." CNAME                             -> field_name
-#         | atom_expr "[" expr "]"                          -> array_index
-#         | "forall" var_decl "do" expr "end"               -> forall_expr
-#         | "(" expr ")"
-#
-#     ?neg_expr: "!" atom_expr                              -> neg_expr
-#         | atom_expr
-#
-#     ?eq_expr: neg_expr "=" neg_expr                       -> eq_expr
-#         | neg_expr "!=" neg_expr                          -> ineq_expr
-#         | neg_expr
-#
-#     ?and_expr: eq_expr "&" and_expr
-#         | eq_expr
-#
-#     ?or_expr: and_expr "|" or_expr
-#         | and_expr
-#
-#     ?imp_expr: or_expr "->" imp_expr
-#         | or_expr
-#
-#     ?expr: imp_expr
-#
-#     ?cmd: "undefine" atom_expr                            -> undefine_cmd
-#         | atom_expr ":=" expr                             -> assign_cmd
-#         | "for" var_decl "do" cmds "end"                  -> forall_cmd
-#         | "if" expr "then" cmds ("elsif" expr "then" cmds)* ("else" cmds)? "end"  -> if_cmd
-#
-#     ?cmds: (cmd ";")*                                     -> cmds
-#
-#     ?startstate: "startstate" ESCAPED_STRING cmds "endstartstate" ";"
-#                 | "ruleset" var_decls "do" startstate "endruleset" ";"
-#
-#     ?rule: "rule" ESCAPED_STRING expr "==>" "begin" cmds "endrule" ";"
-#
-#     ?var_decls: var_decl (";" var_decl)*                  -> var_decls
-#
-#     ?rules:rule (rule)*
-#
-#     ?ruleset: "ruleset" var_decls "do" rules "endruleset" ";"
-#
-#     ?invariant: "invariant" ESCAPED_STRING expr ";"         -> invariant
-#                 | "ruleset" var_decls "do" "invariant" ESCAPED_STRING expr ";" "endruleset" ";"  -> invariants
-#
-#     ?prot_decl: rule | ruleset | invariant
-#
-#     ?protocol: consts types vars startstate (prot_decl)*
-#
-#     COMMENT: ";" /[^\n]*/ NEWLINE
-#
-#     %import common.NEWLINE
-#     %import common.CNAME
-#     %import common.WS
-#     %import common.INT
-#     %import common.ESCAPED_STRING
-#     %ignore WS
-#     %ignore COMMENT
-#
-# """
-
-# grammar = r"""
-#     ?num: /[1-9][0-9]*/
-#     ?nums: "num" (num ";")*
-#     ?test: "-"
-# """
-
+import btor2
 
 grammar = r"""
 
-    num: /[1-9][0-9]*/
+    num: INT                                                                 
 
-    uint: INT
+    uint: INT                                      
 
-    symbol: CNAME
+    symbol: CNAME                                  
 
-    nid: num
+    nid: num                                      
 
-    sid: num
+    sid: num                                        
 
-    const: "const" sid /[0-1]+/
+    const: "const" sid INT                        
 
-    constd: "constd" sid ["-"] uint
+    constd: "constd" sid ["-"] uint                 
 
-    consth: "consth" sid /[0-9a-fA-F]+/
+    consth: "consth" sid CNAME
 
-    input: "input" sid  
-            | "one" sid
-            | "ones" sid 
-            | "zero" sid
-            | const
-            | constd
-            | consth
+    input: "input" sid                              ->input_input
+            | "one" sid                             ->input_one
+            | "ones" sid                            ->input_ones
+            | "zero" sid                            ->input_zero
+            | const                                 ->input_const
+            | constd                                ->input_constd
+            | consth                                ->input_consth
 
-    state: "state" sid
+    state: "state" sid                              
 
     bitvec: "bitvec" num
 
     array: "array" sid sid
     
-    op: "not" 
+    op: OP
+        
+    opidx: OPIDX
+ 
+    node:    sid "sort" (array | bitvec)                                   ->node_sort
+            | nid input                                                    ->node_input
+            | nid state                                                    ->node_state 
+            | nid opidx sid nid uint [uint]                                ->node_opidx
+            | nid op sid nid [nid [nid]]                                   ->node_op 
+            | nid "init" sid nid nid                                       ->node_init
+            | nid "next" sid nid nid                                       ->node_next
+            | nid BCFO nid                                                 ->node_property
+            | nid "justice" num (nid)+                                     ->node_justice
+            
+    comment: ";" /[^\n]+/
+    
+    line:    comment                                                        ->comment       
+            | node [symbol] [comment]                                       ->line
+
+    btor:    (line "\n")+                                                   ->btor
+             
+    
+    COMMENT.2: ";" /[^\n]*/
+    WHITESPACE.2: /[ \t\f]/+ 
+    OP.2: "not" 
         | "inc" | "dec" | "neg" 
         | "redand" | "redor" | "redxor"
         | "iff" | "implies" 
@@ -172,54 +71,132 @@ grammar = r"""
         | "read"
         | "ite"
         | "write"
-        
-    opidx: "sext" | "uext" | "slice"
- 
-    ?node:    sid "sort" array 
-            | sid "sort" bitvec                                     
-            | nid (input | state)
-            | nid opidx sid nid uint [uint]
-            | nid op sid nid [nid [nid]]
-            | nid ("init" | "next") sid nid nid
-            | nid ("bad" | "constraint" | "fair" | "output") nid
-            | nid "justice" num (nid)+
-            
-
-
-    ?line: node2 [symbol] 
-
-    ?btor:    (line)+ 
-             
-
-    COMMENT: ";" /[^\n]*/ NEWLINE
-
+    OPIDX.2: "sext" | "uext" | "slice"
+    BCFO.2: "bad" | "constraint" | "fair" | "output"
+  
+    
     %import common.NEWLINE
     %import common.CNAME
     %import common.WS
-    %import common.INT
     %import common.ESCAPED_STRING
-    %ignore WS
-    %ignore COMMENT
+    %import common.INT
+    %ignore WHITESPACE
 
 """
+
 
 @v_args(inline=True)
 class BtorTransformer(Transformer):
     def __init__(self):
         pass
 
-    # def num(self,v):
-    #     return v
-    #
-    # def bitvec(self,num):
-    #     return num
-    #
-    # def nodebitvec(self,sid,bitvec):
-    #     return sid
+    # num 返回int类型
+    def num(self, val):
+        assert (int(val) != 0)
+        return int(val)
 
+    #uint 返回int类型
+    def uint(self, val):
+        return int(val)
 
+    #symbol 返回str类型
+    def symbol(self, name):
+        return str(name)
 
+    #nid 返回int类型
+    def nid(self, num):
+        return num
 
+    #sid 返回int类型
+    def sid(self, num):
+        return num
+
+    #const.val 二进制返回str类型
+    def const(self, sid, val):
+        # assert是否是二进制
+        return [sid,str(val)]
+
+    #cosnt.uint 十进制返回str类型
+    def constd(self, sid, uint):
+        return [sid, str(uint)]
+
+    #const.val 十六进制返回str类型
+    def consth(self, sid, val):
+        # assert是否是十六进制
+        return [sid, str(val)]
+
+    def input_input(self, sid):
+        return btor2.input1Type(btor2.inputEnum.input, sid)
+
+    def input_one(self, sid):
+        return btor2.input1Type(btor2.inputEnum.one, sid)
+
+    def input_ones(self, sid):
+        return btor2.input1Type(btor2.inputEnum.ones, sid)
+
+    def input_zero(self, sid):
+        return btor2.input1Type(btor2.inputEnum.zero, sid)
+
+    def input_const(self, const):
+        return btor2.constType(const[0],const[1])
+
+    def input_constd(self, const):
+        return btor2.constType(const[0],const[1])
+
+    def input_consth(self, const):
+        return btor2.consthType(const[0],const[1])
+
+    def state(self, sid):
+        return btor2.stateType(sid)
+
+    def bitvec(self, num):
+        return btor2.bvType(num)
+
+    def array(self, len, ele_typ):
+        return btor2.ArrayType(len, ele_typ)
+
+    def op(self, name):
+        return str(name)
+
+    def opidx(self, name):
+        return str(name)
+
+    def node_sort(self, sort0, bv_or_arr):
+        return btor2.SortKind(sort0, bv_or_arr)
+
+    def node_input(self, nid, input):
+        return btor2.InputKind(nid, input)
+
+    def node_state(self, nid, state):
+        return btor2.StateKind(nid, state)
+
+    def node_opidx(self, nid, opT, sid, opdNid, ns1, ns2):
+        print(1)
+        return btor2.IndOpKind(nid, opT, sid, opdNid, ns1, ns2)
+
+    def node_op(self, nid, opT, sid, *nids):
+        return btor2.OpKind(nid, opT, sid, nids)
+
+    def node_init(self, line, sid, nid, val):
+        return btor2.InitKind(line, sid, nid, val)
+
+    def node_next(self, line, sid, nid, prenid):
+        return btor2.NextKind(line, sid, nid, prenid)
+
+    def node_property(self, line, name, nid):
+        return btor2.PropertyKind(line, name, nid)
+
+    def node_justice(self, line, num, *nids):
+        return btor2.JusticeKind(line, num, nids)
+
+    def comment(self, comment):
+        return "comment"
+
+    def line(self, node, symbol, comment):
+        return node
+
+    def btor(self, *line):
+        return line
 
 murphi_parser = Lark(grammar, start="btor", parser="lalr", transformer=BtorTransformer())
 
@@ -231,5 +208,4 @@ def parse_file(filename):
 
 if __name__ == "__main__":
     prot = parse_file("case/test.btor")
-    print(prot.pretty())
-
+    print(1)
