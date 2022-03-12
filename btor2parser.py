@@ -186,7 +186,7 @@ class BtorTransformer(Transformer):
         return btor2.NextKind(line, sid, nid, prenid)
 
     def node_property(self, line, name, nid):
-        return btor2.PropertyKind(line, name, nid)
+        return btor2.PropertyKind(line, str(name), nid)
 
     def node_justice(self, line, num, *nids):
         return btor2.JusticeKind(line, num, nids)
@@ -212,5 +212,6 @@ def parse_file(filename):
 
 
 if __name__ == "__main__":
-    prot = parse_file("case/at.6.prop1-back-serstep.btor2")
+    prot = parse_file("case/memory.btor2")
     print(1)
+
