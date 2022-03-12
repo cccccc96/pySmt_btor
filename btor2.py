@@ -387,15 +387,9 @@ class ConstExp(expType):
         self.val = val
         self.typ = typ
 
-    # def __str__(self):
-    #     return " %s %s " % (str(self.sort), self.val)
-    #
-    # def __repr__(self):
-    #     return "const %s %s" % (str(self.sort), self.val)
-    #
-    # def __eq__(self, other):
-    #     return isinstance(other,
-    #                       ConstExp) and self.sort == other.sort and self.val == other.val
+    def __str__(self):
+        return "(const %s %s)" % (str(self.sort),str(self.val))
+
 
 
 class BVExp(expType):
@@ -404,13 +398,8 @@ class BVExp(expType):
         self.len = len
 
     def __str__(self):
-        return " %s   %s " % (str(self.id), str(self.len))
+        return "bitvec[%s]" % (str(self.len))
 
-    def __repr__(self):
-        return "Var %s   %s" % (repr(self.id), repr(self.len))
-
-    def __eq__(self, other):
-        return isinstance(other, BVExp) and self.id == other.id and self.len == other.len
 
 
 class ArrayExp(expType):
@@ -420,13 +409,7 @@ class ArrayExp(expType):
         self.size = size
 
     def __str__(self):
-        return " %s   %s " % (str(self.id), str(self.len))
-
-    def __repr__(self):
-        return "Var %s   %s" % (repr(self.id), repr(self.len))
-
-    def __eq__(self, other):
-        return isinstance(other, ArrayExp) and self.id == other.id and self.len == other.len
+        return "arr[%s][%s]" % (str(self.len),str(self.len))
 
 
 class StateExp(expType):
@@ -435,13 +418,10 @@ class StateExp(expType):
         self.sort = sort
 
     def __str__(self):
-        return " %s   %s " % (str(self.id), str(self.sort))
+        return "state[%s]]" % (str(self.sort))
 
-    def __repr__(self):
-        return "Var %s   %s" % (repr(self.id), repr(self.sort))
 
-    def __eq__(self, other):
-        return isinstance(other, StateExp) and self.id == other.id and self.sort == other.sort
+
 
 
 class InputExp(expType):
@@ -451,13 +431,9 @@ class InputExp(expType):
         self.sort = sort
 
     def __str__(self):
-        return "%s   %s " % (str(self.typ), str(self.id))
+        return "input_%s" % (str(self.sort))
 
-    def __repr__(self):
-        return "Input %s   %s" % (repr(self.typ), repr(self.id))
 
-    def __eq__(self, other):
-        return isinstance(other, InputExp) and self.typ == other.typ and self.id == other.id
 
 
 # id op sExp(sid) list_nExp(nid*)
@@ -469,14 +445,10 @@ class UifExp(expType):
         self.nExp = nExp
 
     def __str__(self):
-        return "%s( %s ) :%s   " % (self.op, str(self.sExp), str(self.id))
+        if len(self.nExp)==2:
+            return "(%s %s %s)" % (str(self.nExp[0]),str(self.op),str(self.nExp[1]))
+        return "(%s %s)" %(str(self.op),' '.join( str(n) for n in self.nExp))
 
-    def __repr__(self):
-        return "UifExp %s( %s):  @Node %s" % (self.op, str(self.sExp), str(self.id))
-
-    def __eq__(self, other):
-        return isinstance(other,
-                          UifExp) and self.sortId == other.sortId and self.id == other.id and self.es == other.es and self.op == other.op
 
 
 # id opidx sExp(sid) nExp(nid) vals(int list)
@@ -489,14 +461,8 @@ class UifIndExp(expType):
         self.vals = vals
 
     def __str__(self):
-        return "%s( %s,%s ) :%s   " % (self.opidx, str(self.sExp), (self.nExp), str(self.id))
+        return "(%s %s %s %s)" %(str(self.op),str(self.sExp),str(self.nExp),str(self.vals))
 
-    def __repr__(self):
-        return "UifIdExp %s( %s,%s ) :%s   " % (self.op, self.es, self.opNats, str(self.sortId))
-
-    def __eq__(self, other):
-        return isinstance(other,
-                          UifIndExp) and self.sortId == other.sortId and self.id == other.id and self.es == other.es and self.op == other.op and self.opdNats == other.opNats
 
 
 class ReadExp(expType):
@@ -507,14 +473,8 @@ class ReadExp(expType):
         self.sort = sort
 
     def __str__(self):
-        return "%s[%s]  :%s   " % (self.mem, self.adr, str(self.sortId))
+        return "%s[%s]" % (str(self.mem),str(self.adr))
 
-    def __repr__(self):
-        return "mem %s[ %s]: %s  @Node %s" % (self.mem, self.adr, str(self.sortId), str(self.id))
-
-    def __eq__(self, other):
-        return isinstance(other,
-                          ReadExp) and self.sortId == other.sortId and self.mem == other.mem and self.id == other.id and self.adr == other.adr
 
 
 # b?e1:e2
@@ -527,14 +487,9 @@ class IteExp(expType):
         self.e2 = e2
 
     def __str__(self):
-        return "?%s:%s,%s  :%s   " % (self.b, self.e1, self.e2, str(self.sortId))
+        return "(%s?%s:%s)" % (str(self.b),str(self.e1),str(self.e2))
 
-    def __repr__(self):
-        return "IteExp ?%s:%s,%s  :%ss" % (self.b, self.e1, self.e2, str(self.sortId))
 
-    def __eq__(self, other):
-        return isinstance(other,
-                          IteExp) and self.sortId == other.sortId and self.b == other.b and self.e1 == other.e1 and self.e2 == other.e2 and self.id == other.id
 
 
 class StoreExp(expType):
@@ -546,14 +501,9 @@ class StoreExp(expType):
         self.content = content
 
     def __str__(self):
-        return "%s[%s]<=%s  :%s   " % (self.mem, self.adre, self.content, str(self.sortId))
+        return "%s[%s]:=%s" % (str(self.mem),str(self.adr),str(self.content))
 
-    def __repr__(self):
-        return "%s[%s]<=%s  :%s" % (self.mem, self.adre, self.content, str(self.sortId))
 
-    def __eq__(self, other):
-        return isinstance(other,
-                          StoreExp) and self.sortId == other.sortId and self.mem == other.mem and self.adre == other.adre and self.content == other.content and self.id == other.id
 
 
 # toInit 初始化为 initval
@@ -565,10 +515,9 @@ class InitExp(expType):
         self.initVal = initVal
 
     def __str__(self):
-        return "init %s : %s" % (str(self.toInit), str(self.initVal))
+        return "(initial:%s is %s)" % (str(self.toInit), str(self.initVal))
 
-    def __repr__(self):
-        return "init %s : %s" % (str(self.toInit), str(self.initVal))
+
 
 
 # toInit 初始化为 initval
@@ -580,10 +529,8 @@ class NextExp(expType):
         self.pre = pre
 
     def __str__(self):
-        return "next %s : %s" % (str(self.cur), str(self.pre))
+        return "(next %s : %s)" % (str(self.pre), str(self.cur))
 
-    def __repr__(self):
-        return "next %s : %s" % (str(self.cur), str(self.pre))
 
 
 class PropertyEnum(Enum):
@@ -607,10 +554,8 @@ class PropertyExp(expType):
         self.nExp = nExp
 
     def __str__(self):
-        return "%s %s " % (str(self.kind), str(self.nExp))
+        return "(%s:%s)" % (str(self.kind), str(self.nExp))
 
-    def __repr__(self):
-        return "%s %s " % (str(self.kind), str(self.nExp))
 
 
 class JusticeExp(expType):
@@ -622,8 +567,6 @@ class JusticeExp(expType):
     def __str__(self):
         return "%s %s " % (str(self.num), str(self.nExps))
 
-    def __repr__(self):
-        return "%s %s " % (str(self.num), str(self.nExps))
 
 
 class Btor2():
