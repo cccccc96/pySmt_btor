@@ -213,5 +213,6 @@ def parse_file(filename):
 
 if __name__ == "__main__":
     prot = parse_file("case/memory.btor2")
-    print(prot.exp_map[121]) //第121行
+    print(prot.exp_map[121]) #第121行
+    print(prot.exp_map[122]) #第122行
 
