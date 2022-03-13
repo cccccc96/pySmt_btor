@@ -1,17 +1,21 @@
 from enum import Enum
 from sqlite3 import OptimizedUnicode
 from tkinter.simpledialog import SimpleDialog
+from debug import SIMULATION_KIND, TREE_DISPLAY
+
+global level
+level = 6
 
 
-def indent(s, num_space, first_line=None):
-    lines = s.split('\n')
-    if first_line is None:
-        return '\n'.join(' ' * num_space + line for line in lines)
-    else:
-        res = ' ' * first_line + lines[0]
-        if len(lines) > 1:
-            res += '\n' + '\n'.join(' ' * num_space + line for line in lines[1:])
-        return res
+# def indent(s, num_space, first_line=None):
+#     lines = s.split('\n')
+#     if first_line is None:
+#         return '\n'.join(' ' * num_space + line for line in lines)
+#     else:
+#         res = ' ' * first_line + lines[0]
+#         if len(lines) > 1:
+#             res += '\n' + '\n'.join(' ' * num_space + line for line in lines[1:])
+#         return res
 
 
 class BtorType:
@@ -19,8 +23,9 @@ class BtorType:
 
 
 class stateType():
-    def __init__(self, sid):
+    def __init__(self, sid, name=None):
         self.sid = sid
+        self.name = name
 
     def __str__(self):
         return "state %d" % (self.sid)
@@ -76,8 +81,9 @@ class sortId:
 
 
 class nodeId:
-    def __init__(self, id):
+    def __init__(self, id, name=None):
         self.id = int(id)
+        self.name = name
 
     def __str__(self):
         return "nodeId %d" % (self.id)
@@ -155,10 +161,10 @@ class constType(inputType):
         self.val = val
 
     def __str__(self):
-        return "const %s %s" % (str(self.sortId), self.val)
+        return "const-%s" % self.val
 
     def __repr__(self):
-        return "const %s %s" % (str(self.sortId), self.val)
+        return "const-%s" % self.val
 
     def __eq__(self, other):
         return isinstance(other, constType) and self.sortId == other.sortId and self.val == other.val
@@ -170,10 +176,16 @@ class constdType(inputType):
         self.val = val
 
     def __str__(self):
-        return "const %s %s" % (str(self.sortId), self.val)
+        if SIMULATION_KIND:
+            return "constd %s %s" % (str(self.sortId), self.val)
+        else:
+            return "const%s" % self.val
 
     def __repr__(self):
-        return "const %s %s" % (str(self.sortId), self.val)
+        if SIMULATION_KIND:
+            return "constd %s %s" % (str(self.sortId), self.val)
+        else:
+            return "const%s" % self.val
 
     def __eq__(self, other):
         return isinstance(other, constdType) and self.sortId == other.sortId and self.val == other.val
@@ -231,9 +243,10 @@ class SortKind(nodeType):
 
 
 class InputKind(nodeType):
-    def __init__(self, nid, inpT: inputType):
+    def __init__(self, nid, inpT: inputType, name=None):
         self.inpT = inpT
         self.nodeID = nodeId(nid)
+        self.name = name
 
     def __str__(self):
         return "Input %s @%s" % (str(self.inpT), str(self.nodeID))
@@ -369,7 +382,8 @@ class JusticeKind(nodeType):
 
 
 class expType:
-    pass
+    def __str__(self):
+        return "exptype"
 
 
 class constEnum(Enum):
@@ -386,10 +400,16 @@ class ConstExp(expType):
         self.sort = sort
         self.val = val
         self.typ = typ
+        self.indent_num = 0
 
     def __str__(self):
-        return "(const %s %s)" % (str(self.sort),str(self.val))
-
+        if SIMULATION_KIND:
+            return "(const %s %s)" % (str(self.sort), str(self.val))
+        else:
+            if TREE_DISPLAY:
+                return "%s%s" % (' ' * self.indent_num, str(self.val))
+            else:
+                return str(self.val)
 
 
 class BVExp(expType):
@@ -398,8 +418,7 @@ class BVExp(expType):
         self.len = len
 
     def __str__(self):
-        return "bitvec[%s]" % (str(self.len))
-
+        return "%s-bv" % (str(self.len))
 
 
 class ArrayExp(expType):
@@ -409,46 +428,85 @@ class ArrayExp(expType):
         self.size = size
 
     def __str__(self):
-        return "arr[%s][%s]" % (str(self.len),str(self.len))
+        return "arr[%s][%s]" % (str(self.len), str(self.len))
 
 
 class StateExp(expType):
-    def __init__(self, id, sort: expType):
+    def __init__(self, id, sort: expType, name=None):
         self.id = id
         self.sort = sort
+        self.name = name
+        self.indent_num = 0
 
     def __str__(self):
-        return "state[%s]]" % (str(self.sort))
-
-
-
+        if self.name != None:
+            if SIMULATION_KIND:
+                return "state-%s" % (self.name)
+            else:
+                if TREE_DISPLAY:
+                    return ' ' * self.indent_num + ("%s" % self.name)
+                else:
+                    return self.name
+        else:
+            # return "state[%s]]" % (str(self.sort))
+            # return "no-name-state"
+            return "state%s" % (str(self.id))
 
 
 class InputExp(expType):
-    def __init__(self, id, typ: inputEnum, sort: expType):
+    def __init__(self, id, typ: inputEnum, sort: expType, name=None):
         self.id = id
         self.typ = typ
         self.sort = sort
+        self.indent_num = 0
+        self.name = name
 
     def __str__(self):
-        return "input_%s" % (str(self.sort))
-
-
+        if self.name is not None:
+            if SIMULATION_KIND:
+                return "input_%s" % (str(self.sort))
+            else:
+                if TREE_DISPLAY:
+                    return "%s%s" % (' ' * self.indent_num, self.name)
+                else:
+                    return "%s" % self.name
+        else:
+            return "%sinput_%d" % (' ' * self.indent_num, self.id)
 
 
 # id op sExp(sid) list_nExp(nid*)
 class UifExp(expType):
-    def __init__(self, id, op: str, sExp: expType, nExp):
+    def __init__(self, id, op: str, sExp: expType, nExp, indent_num=0):
         self.id = id
         self.op = op
         self.sExp = sExp
         self.nExp = nExp
+        self.indent_num = indent_num
 
     def __str__(self):
-        if len(self.nExp)==2:
-            return "(%s %s %s)" % (str(self.nExp[0]),str(self.op),str(self.nExp[1]))
-        return "(%s %s)" %(str(self.op),' '.join( str(n) for n in self.nExp))
-
+        if TREE_DISPLAY:
+            if len(self.nExp) == 2:
+                self.nExp[0].indent_num = self.indent_num + 4
+                self.nExp[1].indent_num = self.indent_num + 4
+                str1 = '\n' + ' ' * self.indent_num + str(self.op)
+                str2 = '\n' + ' ' * self.indent_num + str(self.nExp[0])
+                str3 = '\n' + ' ' * self.indent_num + str(self.nExp[1])
+                return str1 + str2 + str3
+            elif len(self.nExp) == 1:
+                self.nExp[0].indent_num = self.indent_num + 4
+                return "\n%s%s\n%s" % (' ' * self.indent_num, str(self.op), ' '.join(str(n) for n in self.nExp))
+            else:
+                return "error-UifExp"
+        else:
+            if len(self.nExp) == 2:
+                self.nExp[0].indent_num = self.indent_num + 4
+                self.nExp[1].indent_num = self.indent_num + 4
+                return "(%s %s %s)" % (str(self.op), str(self.nExp[0]), str(self.nExp[1]))
+            elif len(self.nExp) == 1:
+                self.nExp[0].indent_num = self.indent_num + 4
+                return "(%s %s)" % (str(self.op), str(self.nExp[0]))
+            else:
+                return "error-UifExp"
 
 
 # id opidx sExp(sid) nExp(nid) vals(int list)
@@ -461,8 +519,7 @@ class UifIndExp(expType):
         self.vals = vals
 
     def __str__(self):
-        return "(%s %s %s %s)" %(str(self.op),str(self.sExp),str(self.nExp),str(self.vals))
-
+        return "(%s %s %s %s)" % (str(self.op), str(self.sExp), str(self.nExp), str(self.vals))
 
 
 class ReadExp(expType):
@@ -473,23 +530,30 @@ class ReadExp(expType):
         self.sort = sort
 
     def __str__(self):
-        return "%s[%s]" % (str(self.mem),str(self.adr))
+        return "%s[%s]" % (str(self.mem), str(self.adr).replace(' ', ''))
 
 
-
-# b?e1:e2
+# b? e1: e2
 class IteExp(expType):
-    def __init__(self, id, sort: expType, b: expType, e1: expType, e2: expType):
+    def __init__(self, id, sort: expType, b: expType, e1: expType, e2: expType, indent_num):
         self.id = id
         self.b = b
         self.sort = sort
         self.e1 = e1
         self.e2 = e2
+        self.indent_num = indent_num
 
     def __str__(self):
-        return "(%s?%s:%s)" % (str(self.b),str(self.e1),str(self.e2))
-
-
+        if TREE_DISPLAY:
+            self.b.indent_num = self.indent_num + 4
+            self.e1.indent_num = self.indent_num + 4
+            self.e2.indent_num = self.indent_num + 4
+            str1 = '\n%sif\n' % (' ' * self.indent_num) + str(self.b)
+            str2 = '\n%sdo\n' % (' ' * self.indent_num) + str(self.e1)
+            str3 = '\n%selse\n' % (' ' * self.indent_num) + str(self.e2)
+            return str1 + str2 + str3
+        else:
+            return "(%s? %s: %s)" % (str(self.e1), str(self.b), str(self.e2))
 
 
 class StoreExp(expType):
@@ -501,9 +565,7 @@ class StoreExp(expType):
         self.content = content
 
     def __str__(self):
-        return "%s[%s]:=%s" % (str(self.mem),str(self.adr),str(self.content))
-
-
+        return "%s[%s]:=%s" % (str(self.mem), str(self.adr).replace(' ', ''), str(self.content))
 
 
 # toInit 初始化为 initval
@@ -518,8 +580,6 @@ class InitExp(expType):
         return "(initial:%s is %s)" % (str(self.toInit), str(self.initVal))
 
 
-
-
 # toInit 初始化为 initval
 class NextExp(expType):
     def __init__(self, id, sort, cur: expType, pre: expType):
@@ -529,8 +589,8 @@ class NextExp(expType):
         self.pre = pre
 
     def __str__(self):
-        return "(next %s : %s)" % (str(self.pre), str(self.cur))
-
+        # return "(next %s : %s)" % (str(self.pre), str(self.cur))
+        return str(self.pre)
 
 
 class PropertyEnum(Enum):
@@ -557,7 +617,6 @@ class PropertyExp(expType):
         return "(%s:%s)" % (str(self.kind), str(self.nExp))
 
 
-
 class JusticeExp(expType):
     def __init__(self, id, num: str, nExps):
         self.id = id
@@ -568,31 +627,45 @@ class JusticeExp(expType):
         return "%s %s " % (str(self.num), str(self.nExps))
 
 
-
 class Btor2():
-    def __init__(self, nodes):
+    def __init__(self, lines):
         self.node_map = {}
         self.exp_map = {}
-        for node in nodes:
-            if isinstance(node, nodeType):
-                self.node_map[node.nodeID.id] = node
+
+        # for node in nodes:
+        #     if isinstance(node, nodeType):
+        #         self.node_map[node.nodeID.id] = node
+
+        for line in lines:
+            if isinstance(line[0], StateKind):
+                if len(line) > 1:
+                    line[0].state.name = line[1]
+            if isinstance(line[0], InputKind):
+                if len(line) > 1:
+                    line[0].name = line[1]
+            if isinstance(line[0], nodeType):
+                self.node_map[line[0].nodeID.id] = line[0]
+
         for node in self.node_map.values():
+
             assert (isinstance(node, nodeType))
+
             # sortkind bv/arr
             if isinstance(node, SortKind):
                 if isinstance(node.bv_or_arr, bvType):
                     exp = BVExp(node.nodeID.id, node.bv_or_arr.len)
                 elif isinstance(node.bv_or_arr, ArrayType):
                     size = self.exp_map[(node.bv_or_arr.ele_typ)]
-                    len = self.exp_map[(node.bv_or_arr.len)]
-                    exp = ArrayExp(node.nodeID.id, size, len)
+                    x_len = self.exp_map[(node.bv_or_arr.len)]
+                    exp = ArrayExp(node.nodeID.id, size, x_len)
                 self.exp_map[exp.id] = exp
+
             # inputkind input/const
             elif isinstance(node, InputKind):
                 if isinstance(node.inpT, input1Type):
                     typ = node.inpT.inpEnum
                     sort = self.exp_map[(node.inpT.sortId)]
-                    exp = InputExp(node.nodeID.id, typ, sort)
+                    exp = InputExp(node.nodeID.id, typ, sort, node.name)
                 elif isinstance(node.inpT, constType):
                     typ = constEnum.const
                     sort = self.exp_map[node.inpT.sortId]
@@ -609,19 +682,22 @@ class Btor2():
                     val = node.inpT.val
                     exp = ConstExp(node.nodeID.id, typ, sort, val)
                 self.exp_map[exp.id] = exp
+
             # inputkind state
             elif isinstance(node, StateKind):
                 sort = self.exp_map[node.state.sid]
-                exp = StateExp(node.nodeID.id, sort)
+                exp = StateExp(node.nodeID.id, sort, node.state.name)
                 self.exp_map[exp.id] = exp
+
             # opidx 一个定义都没有，都是uifindexp
             elif isinstance(node, IndOpKind):
                 op = node.opT
                 exp1 = self.exp_map[node.sid]
                 exp2 = self.exp_map[node.opdNid]
                 vals = [node.ns1, node.ns2]
-                exp = UifIndExp(node.nodeID.id,op, exp1, exp2, vals)
+                exp = UifIndExp(node.nodeID.id, op, exp1, exp2, vals)
                 self.exp_map[exp.id] = exp
+
             # op 只有readexp/iteexp/storeexp， 其他都是uifexp
             elif isinstance(node, OpKind):
                 # ite
@@ -632,7 +708,8 @@ class Btor2():
                     b = self.exp_map[opdNids[0]]
                     e1 = self.exp_map[opdNids[1]]
                     e2 = self.exp_map[opdNids[2]]
-                    exp = IteExp(node.nodeID.id, sort, b, e1, e2)
+                    global level
+                    exp = IteExp(node.nodeID.id, sort, b, e1, e2, 0)
                 # read
                 elif node.opT == "read":
                     sid = node.sid
@@ -658,8 +735,11 @@ class Btor2():
                         n.append(self.exp_map[opdNids[1]])
                     if opdNids[2] is not None:
                         n.append(self.exp_map[opdNids[2]])
-                    exp = UifExp(node.nodeID.id,node.opT , sort, n)
+                    # global level
+                    exp = UifExp(node.nodeID.id, node.opT, sort, n, 0)
+                    level = level + 2
                 self.exp_map[exp.id] = exp
+
             elif isinstance(node, NextKind):
                 sid = node.sid
                 nid = node.nid
@@ -669,6 +749,7 @@ class Btor2():
                 pre = self.exp_map[prenid]
                 exp = NextExp(node.nodeID.id, sort, cur, pre)
                 self.exp_map[exp.id] = exp
+
             elif isinstance(node, InitKind):
                 sid = node.sid
                 nid = node.nid
@@ -678,14 +759,23 @@ class Btor2():
                 initVal = self.exp_map[valid]
                 exp = InitExp(node.nodeID.id, sort, toInit, initVal)
                 self.exp_map[exp.id] = exp
+
             elif isinstance(node, PropertyKind):
                 kind = node.kind
                 nid = node.nid
                 nExp = self.exp_map[nid]
                 exp = PropertyExp(node.nodeID.id, kind, nExp)
                 self.exp_map[exp.id] = exp
+
             elif isinstance(node, JusticeKind):
                 exp = JusticeExp(node.nodeID.id, node.nids)
                 self.exp_map[exp.id] = exp
+
             else:
-                print(str(node)+" : unkown!")
+                print(str(node) + " : unkown!")
+
+    # display the exp_map of ine nid
+    def display(self, nid):
+        # for i in self.exp_map[nid]:
+        #     print(i)
+        print(self.exp_map[nid])

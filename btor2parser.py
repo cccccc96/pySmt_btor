@@ -32,11 +32,11 @@ grammar = r"""
     bitvec: "bitvec" num
 
     array: "array" sid sid
-    
+
     op: OP
-        
+
     opidx: OPIDX
- 
+
     node:    sid "sort" (array | bitvec)                                   ->node_sort
             | nid input                                                    ->node_input
             | nid state                                                    ->node_state 
@@ -46,16 +46,16 @@ grammar = r"""
             | nid "next" sid nid nid                                       ->node_next
             | nid BCFO nid                                                 ->node_property
             | nid "justice" num (nid)+                                     ->node_justice
-            
+
     comment: ";" /[^\n]+/
-    
+
     line:    comment                                                        ->comment       
             | node [symbol] [comment]                                       ->line
             | "\n"                                                          ->newline
 
     btor:    (line "\n")+                                                   ->btor
-             
-    
+
+
     COMMENT.2: ";" /[^\n]*/
     WHITESPACE.2: /[ \t\f]/+ 
     OP.2: "not" 
@@ -76,8 +76,8 @@ grammar = r"""
     BCFO.2: "bad" | "constraint" | "fair" | "output"
     INT: DIGIT+
     UINT.2: INT | "-" INT
-  
-    
+
+
     %import common.NEWLINE
     %import common.CNAME
     %import common.WS
@@ -98,32 +98,32 @@ class BtorTransformer(Transformer):
         assert (int(val) != 0)
         return int(val)
 
-    #uint 返回int类型
+    # uint 返回int类型
     def uint(self, val):
         return int(val)
 
-    #symbol 返回str类型
+    # symbol 返回str类型
     def symbol(self, name):
         return str(name)
 
-    #nid 返回int类型
+    # nid 返回int类型
     def nid(self, num):
         return num
 
-    #sid 返回int类型
+    # sid 返回int类型
     def sid(self, num):
         return num
 
-    #const.val 二进制返回str类型
+    # const.val 二进制返回str类型
     def const(self, sid, val):
         # assert是否是二进制
-        return [sid,str(val)]
+        return [sid, str(val)]
 
-    #cosnt.uint 十进制返回str类型
+    # cosnt.uint 十进制返回str类型
     def constd(self, sid, uint):
         return [sid, str(uint)]
 
-    #const.val 十六进制返回str类型
+    # const.val 十六进制返回str类型
     def consth(self, sid, val):
         # assert是否是十六进制
         return [sid, str(val)]
@@ -141,13 +141,13 @@ class BtorTransformer(Transformer):
         return btor2.input1Type(btor2.inputEnum.zero, sid)
 
     def input_const(self, const):
-        return btor2.constType(const[0],const[1])
+        return btor2.constType(const[0], const[1])
 
     def input_constd(self, const):
-        return btor2.constType(const[0],const[1])
+        return btor2.constType(const[0], const[1])
 
     def input_consth(self, const):
-        return btor2.consthType(const[0],const[1])
+        return btor2.consthType(const[0], const[1])
 
     def state(self, sid):
         return btor2.stateType(sid)
@@ -195,7 +195,7 @@ class BtorTransformer(Transformer):
         return "comment"
 
     def line(self, node, symbol, comment):
-        return node
+        return [node, symbol]
 
     def newline(self):
         return "\n"
@@ -203,16 +203,17 @@ class BtorTransformer(Transformer):
     def btor(self, *line):
         return btor2.Btor2(line)
 
-murphi_parser = Lark(grammar, start="btor", parser="lalr", transformer=BtorTransformer())
+
+btor2_parser = Lark(grammar, start="btor", parser="lalr", transformer=BtorTransformer())
 
 
 def parse_file(filename):
     with open(filename, "r") as f:
-        return murphi_parser.parse(f.read())
+        return btor2_parser.parse(f.read())
 
 
 if __name__ == "__main__":
     prot = parse_file("case/memory.btor2")
-    print(prot.exp_map[121]) #第121行
-    print(prot.exp_map[122]) #第122行
-
+    # prot.display(nid=121)
+    prot.display(nid=122)
+    # prot.display(nid=122)
