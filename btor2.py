@@ -3,9 +3,6 @@ from sqlite3 import OptimizedUnicode
 from tkinter.simpledialog import SimpleDialog
 from debug import SIMULATION_KIND, TREE_DISPLAY
 
-global level
-level = 6
-
 
 # def indent(s, num_space, first_line=None):
 #     lines = s.split('\n')
@@ -42,7 +39,7 @@ class bvType(BtorType):
         self.len = len
 
     def __str__(self):
-        return "’bitvec %d" % (self.len)
+        return "bitvec %d" % (self.len)
 
     def __repr__(self):
         return "bitvecType(%d)" % (self.len)
@@ -84,6 +81,7 @@ class nodeId:
     def __init__(self, id, name=None):
         self.id = int(id)
         self.name = name
+        self.node_kind = "idle"
 
     def __str__(self):
         return "nodeId %d" % (self.id)
@@ -314,8 +312,8 @@ class OpKind(nodeType):
 class NextKind(nodeType):
     def __init__(self, line, sid, nid, prenid):
         self.nodeID = nodeId(line)
-        self.nid = nid
         self.sid = sid
+        self.nid = nid
         self.prenid = prenid
 
     def __str__(self):
@@ -437,6 +435,7 @@ class StateExp(expType):
         self.sort = sort
         self.name = name
         self.indent_num = 0
+        self.pre = None
 
     def __str__(self):
         if self.name != None:
@@ -449,8 +448,10 @@ class StateExp(expType):
                     return self.name
         else:
             # return "state[%s]]" % (str(self.sort))
-            # return "no-name-state"
-            return "state%s" % (str(self.id))
+            if TREE_DISPLAY:
+                return ' ' * self.indent_num + "state%s" % (str(self.id))
+            else:
+                return "state%s" % (str(self.id))
 
 
 class InputExp(expType):
@@ -479,31 +480,31 @@ class UifExp(expType):
     def __init__(self, id, op: str, sExp: expType, nExp, indent_num=0):
         self.id = id
         self.op = op
-        self.sExp = sExp
+        self.sExp = sExp # ?
         self.nExp = nExp
         self.indent_num = indent_num
 
     def __str__(self):
         if TREE_DISPLAY:
             if len(self.nExp) == 2:
-                self.nExp[0].indent_num = self.indent_num + 4
-                self.nExp[1].indent_num = self.indent_num + 4
-                str1 = '\n' + ' ' * self.indent_num + str(self.op)
+                self.nExp[0].indent_num = self.indent_num + 2
+                self.nExp[1].indent_num = self.indent_num + 2
+                str1 = ' ' * self.indent_num + str(self.op)
                 str2 = '\n' + ' ' * self.indent_num + str(self.nExp[0])
                 str3 = '\n' + ' ' * self.indent_num + str(self.nExp[1])
                 return str1 + str2 + str3
             elif len(self.nExp) == 1:
-                self.nExp[0].indent_num = self.indent_num + 4
-                return "\n%s%s\n%s" % (' ' * self.indent_num, str(self.op), ' '.join(str(n) for n in self.nExp))
+                self.nExp[0].indent_num = self.indent_num + 2
+                return "%s%s\n%s" % (' ' * self.indent_num, str(self.op), ' '.join(str(n) for n in self.nExp))
             else:
                 return "error-UifExp"
         else:
             if len(self.nExp) == 2:
-                self.nExp[0].indent_num = self.indent_num + 4
-                self.nExp[1].indent_num = self.indent_num + 4
+                self.nExp[0].indent_num = self.indent_num + 2
+                self.nExp[1].indent_num = self.indent_num + 2
                 return "(%s %s %s)" % (str(self.op), str(self.nExp[0]), str(self.nExp[1]))
             elif len(self.nExp) == 1:
-                self.nExp[0].indent_num = self.indent_num + 4
+                self.nExp[0].indent_num = self.indent_num + 2
                 return "(%s %s)" % (str(self.op), str(self.nExp[0]))
             else:
                 return "error-UifExp"
@@ -548,7 +549,7 @@ class IteExp(expType):
             self.b.indent_num = self.indent_num + 4
             self.e1.indent_num = self.indent_num + 4
             self.e2.indent_num = self.indent_num + 4
-            str1 = '\n%sif\n' % (' ' * self.indent_num) + str(self.b)
+            str1 = '%sif\n' % (' ' * self.indent_num) + str(self.b)
             str2 = '\n%sdo\n' % (' ' * self.indent_num) + str(self.e1)
             str3 = '\n%selse\n' % (' ' * self.indent_num) + str(self.e2)
             return str1 + str2 + str3
@@ -587,10 +588,11 @@ class NextExp(expType):
         self.sort = sort
         self.cur = cur
         self.pre = pre
+        cur.pre = self.pre
 
     def __str__(self):
-        # return "(next %s : %s)" % (str(self.pre), str(self.cur))
-        return str(self.pre)
+        return "(next %s : %s)" % (str(self.pre), str(self.cur))
+        # return str(self.pre)
 
 
 class PropertyEnum(Enum):
@@ -614,7 +616,7 @@ class PropertyExp(expType):
         self.nExp = nExp
 
     def __str__(self):
-        return "(%s:%s)" % (str(self.kind), str(self.nExp))
+        return "%s:\n%s" % (str(self.kind), str(self.nExp))
 
 
 class JusticeExp(expType):
@@ -627,14 +629,49 @@ class JusticeExp(expType):
         return "%s %s " % (str(self.num), str(self.nExps))
 
 
+def findNodes(exp: expType):
+    nodes = []
+    
+    if isinstance(exp, UifExp):
+        nodes.append(exp.nExp)
+
+    return nodes
+
+
+class preExp(expType):
+    def __init__(self, nowExp: expType):
+        self.nowExp = nowExp
+        self.preExp = self.preExp_dfs(self.nowExp)
+
+    def __str__(self):
+        return "%s" % str(self.preExp)
+
+    def preExp_dfs(self, exp: expType):
+
+        if isinstance(exp, StateExp):
+            # print("4-------", exp, exp.pre)
+            exp = exp.pre
+            return exp
+        
+        if isinstance(exp, UifExp):
+            # print("3-------", exp)
+            if len(exp.nExp) == 2:
+                exp.nExp[0] = self.preExp_dfs(exp.nExp[0])
+                exp.nExp[1] = self.preExp_dfs(exp.nExp[1])
+            if len(exp.nExp) == 1:
+                exp.nExp[0] = self.preExp_dfs(exp.nExp[0])
+        if isinstance(exp, PropertyExp):
+            # print("2-------", exp)
+            exp.nExp = self.preExp_dfs(exp.nExp)
+
+        # print("1------", exp)
+        return exp
+
+
 class Btor2():
     def __init__(self, lines):
         self.node_map = {}
         self.exp_map = {}
-
-        # for node in nodes:
-        #     if isinstance(node, nodeType):
-        #         self.node_map[node.nodeID.id] = node
 
         for line in lines:
             if isinstance(line[0], StateKind):
@@ -708,7 +745,6 @@ class Btor2():
                     b = self.exp_map[opdNids[0]]
                     e1 = self.exp_map[opdNids[1]]
                     e2 = self.exp_map[opdNids[2]]
-                    global level
                     exp = IteExp(node.nodeID.id, sort, b, e1, e2, 0)
                 # read
                 elif node.opT == "read":
@@ -735,9 +771,7 @@ class Btor2():
                         n.append(self.exp_map[opdNids[1]])
                     if opdNids[2] is not None:
                         n.append(self.exp_map[opdNids[2]])
-                    # global level
                     exp = UifExp(node.nodeID.id, node.opT, sort, n, 0)
-                    level = level + 2
                 self.exp_map[exp.id] = exp
 
             elif isinstance(node, NextKind):
@@ -775,7 +809,9 @@ class Btor2():
                 print(str(node) + " : unkown!")
 
     # display the exp_map of ine nid
-    def display(self, nid):
-        # for i in self.exp_map[nid]:
-        #     print(i)
-        print(self.exp_map[nid])
+    def display(self, nid, pre=False):
+        if pre == True:
+            preCondition = preExp(self.exp_map[nid])
+            print(preCondition)
+        else:
+            print(self.exp_map[nid])

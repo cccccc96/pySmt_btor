@@ -215,5 +215,4 @@ def parse_file(filename):
 if __name__ == "__main__":
     prot = parse_file("case/memory.btor2")
     # prot.display(nid=121)
-    prot.display(nid=122)
-    # prot.display(nid=122)
+    prot.display(nid=122, pre=False)
