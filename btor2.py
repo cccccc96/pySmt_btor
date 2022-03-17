@@ -1,7 +1,9 @@
 from enum import Enum
-from sqlite3 import OptimizedUnicode
-from tkinter.simpledialog import SimpleDialog
 from debug import SIMULATION_KIND, TREE_DISPLAY
+from pysmt.shortcuts import Symbol, Not, And, Ite, BV, Equals
+from pysmt.shortcuts import is_sat, is_unsat, Solver, TRUE, FALSE
+from pysmt.typing import BOOL, BVType
+import btor2parser
 
 
 # def indent(s, num_space, first_line=None):
@@ -409,6 +411,21 @@ class ConstExp(expType):
             else:
                 return str(self.val)
 
+    def toPySmt(self):
+        if self.typ is constEnum.const:
+            if isinstance(self.sort, BVExp):
+                val = int(self.val, 2)
+                if self.sort.len == 1 and val == 0:
+                    return FALSE()
+                elif self.sort.len == 1 and val == 1:
+                    return TRUE()
+                elif self.sort.len != 1:
+                    return BV(val, self.sort.len)
+            elif isinstance(self.sort, ArrayExp):
+                assert "Array 待完善"
+        else:
+            assert "constd consth 待完善"
+
 
 class BVExp(expType):
     def __init__(self, id, len):
@@ -417,6 +434,11 @@ class BVExp(expType):
 
     def __str__(self):
         return "%s-bv" % (str(self.len))
+
+    def toPySmt(self):
+        if self.len == 1:
+            return BOOL
+        return BVType(self.len)
 
 
 class ArrayExp(expType):
@@ -433,7 +455,10 @@ class StateExp(expType):
     def __init__(self, id, sort: expType, name=None):
         self.id = id
         self.sort = sort
-        self.name = name
+        if name is None:
+            self.name = "node" + str(id)
+        else:
+            self.name = name
         self.indent_num = 0
         self.pre = None
 
@@ -453,6 +478,11 @@ class StateExp(expType):
             else:
                 return "state%s" % (str(self.id))
 
+    def toPySmt(self):
+        typename = self.sort.toPySmt()
+        name = self.name
+        return Symbol(name, typename)
+
 
 class InputExp(expType):
     def __init__(self, id, typ: inputEnum, sort: expType, name=None):
@@ -460,7 +490,10 @@ class InputExp(expType):
         self.typ = typ
         self.sort = sort
         self.indent_num = 0
-        self.name = name
+        if name is None:
+            self.name = "node" + str(id)
+        else:
+            self.name = name
 
     def __str__(self):
         if self.name is not None:
@@ -474,13 +507,18 @@ class InputExp(expType):
         else:
             return "%sinput_%d" % (' ' * self.indent_num, self.id)
 
+    def toPySmt(self):
+        typename = self.sort.toPySmt()
+        name = self.name
+        return Symbol(name, typename)
+
 
 # id op sExp(sid) list_nExp(nid*)
 class UifExp(expType):
     def __init__(self, id, op: str, sExp: expType, nExp, indent_num=0):
         self.id = id
         self.op = op
-        self.sExp = sExp # ?
+        self.sExp = sExp  # ?
         self.nExp = nExp
         self.indent_num = indent_num
 
@@ -556,6 +594,9 @@ class IteExp(expType):
         else:
             return "(%s? %s: %s)" % (str(self.e1), str(self.b), str(self.e2))
 
+    def toPySmt(self):
+        return Ite(self.b.toPySmt(), self.e1.toPySmt(), self.e2.toPySmt())
+
 
 class StoreExp(expType):
     def __init__(self, id, sort: expType, mem: expType, adr: expType, content: expType):
@@ -569,6 +610,49 @@ class StoreExp(expType):
         return "%s[%s]:=%s" % (str(self.mem), str(self.adr).replace(' ', ''), str(self.content))
 
 
+class AddExp(expType):
+    def __init__(self, id, sort, left, right):
+        self.id = id
+        self.sort = sort
+        self.left = left
+        self.right = right
+
+    def toPySmt(self):
+        return self.left.toPySmt() + self.right.toPySmt()
+
+
+class AndExp(expType):
+    def __init__(self, id, sort, left, right):
+        self.id = id
+        self.sort = sort
+        self.left = left
+        self.right = right
+
+    def toPySmt(self):
+        return And(self.left.toPySmt(), self.right.toPySmt())
+
+
+class NotExp(expType):
+    def __init__(self, id, sort, subExp):
+        self.id = id
+        self.sort = sort
+        self.subExp = subExp
+
+    def toPySmt(self):
+        return Not(self.subExp.toPySmt())
+
+
+class EqExp(expType):
+    def __init__(self, id, sort, left, right):
+        self.id = id
+        self.sort = sort
+        self.left = left
+        self.right = right
+
+    def toPySmt(self):
+        return Equals(self.left.toPySmt(), self.right.toPySmt())
+
+
 # toInit 初始化为 initval
 class InitExp(expType):
     def __init__(self, id, sort, toInit: expType, initVal: expType):
@@ -579,6 +663,9 @@ class InitExp(expType):
 
     def __str__(self):
         return "(initial:%s is %s)" % (str(self.toInit), str(self.initVal))
+
+    def toPySmt(self):
+        return self.toInit.toPySmt().Equals(self.initVal.toPySmt())
 
 
 # toInit 初始化为 initval
@@ -593,6 +680,9 @@ class NextExp(expType):
     def __str__(self):
         return "(next %s : %s)" % (str(self.pre), str(self.cur))
         # return str(self.pre)
+
+    def toPySmt(self):
+        return next_var(self.cur.toPySmt()).Equals(self.pre.toPySmt())
 
 
 class PropertyEnum(Enum):
@@ -618,6 +708,9 @@ class PropertyExp(expType):
     def __str__(self):
         return "%s:\n%s" % (str(self.kind), str(self.nExp))
 
+    def toPySmt(self):
+        return self.nExp.toPySmt()
+
 
 class JusticeExp(expType):
     def __init__(self, id, num: str, nExps):
@@ -631,7 +724,7 @@ class JusticeExp(expType):
 
 def findNodes(exp: expType):
     nodes = []
-    
+
     if isinstance(exp, UifExp):
         nodes.append(exp.nExp)
 
@@ -652,7 +745,7 @@ class preExp(expType):
             # print("4-------", exp, exp.pre)
             exp = exp.pre
             return exp
-        
+
         if isinstance(exp, UifExp):
             # print("3-------", exp)
             if len(exp.nExp) == 2:
@@ -668,10 +761,34 @@ class preExp(expType):
         return exp
 
 
+def next_var(v):
+    """Returns the 'next' of the given variable"""
+    return Symbol("next(%s)" % v.symbol_name(), v.symbol_type())
+
+
+def at_time(v, t):
+    """Builds an SMT variable representing v at time t"""
+    return Symbol("%s@%d" % (v.symbol_name(), t), v.symbol_type())
+
+
+class TransitionSystem(object):
+    # T(a,b,next(a),next(b),...)
+    # 0-1时刻 T(a0,b0,a1,b1,..)
+    # 1-2时刻 T(a0,b0,a1,b1,..)
+    def __init__(self, variables, init, trans):
+        self.variables = variables
+        self.init = init
+        self.trans = trans
+
+
 class Btor2():
     def __init__(self, lines):
         self.node_map = {}
         self.exp_map = {}
+        self.next_map = {}  # next
+        self.init_map = {}  # init
+        self.prop_map = {}  # 属性
+        self.var_map = {}  # 变量input/state
 
         for line in lines:
             if isinstance(line[0], StateKind):
@@ -703,6 +820,7 @@ class Btor2():
                     typ = node.inpT.inpEnum
                     sort = self.exp_map[(node.inpT.sortId)]
                     exp = InputExp(node.nodeID.id, typ, sort, node.name)
+                    self.var_map[exp.id] = exp
                 elif isinstance(node.inpT, constType):
                     typ = constEnum.const
                     sort = self.exp_map[node.inpT.sortId]
@@ -720,11 +838,13 @@ class Btor2():
                     exp = ConstExp(node.nodeID.id, typ, sort, val)
                 self.exp_map[exp.id] = exp
 
+
             # inputkind state
             elif isinstance(node, StateKind):
                 sort = self.exp_map[node.state.sid]
                 exp = StateExp(node.nodeID.id, sort, node.state.name)
                 self.exp_map[exp.id] = exp
+                self.var_map[exp.id] = exp
 
             # opidx 一个定义都没有，都是uifindexp
             elif isinstance(node, IndOpKind):
@@ -762,6 +882,33 @@ class Btor2():
                     adr = self.exp_map[opdNids[1]]
                     content = self.exp_map[opdNids[2]]
                     exp = StoreExp(node.nodeID.id, sort, mem, adr, content)
+                elif node.opT == "add":
+                    sid = node.sid
+                    opdNids = node.opdNids
+                    sort = self.exp_map[sid]
+                    left = self.exp_map[opdNids[0]]
+                    right = self.exp_map[opdNids[1]]
+                    exp = AddExp(node.nodeID.id, sort, left, right)
+                elif node.opT == "and":
+                    sid = node.sid
+                    opdNids = node.opdNids
+                    sort = self.exp_map[sid]
+                    left = self.exp_map[opdNids[0]]
+                    right = self.exp_map[opdNids[1]]
+                    exp = AndExp(node.nodeID.id, sort, left, right)
+                elif node.opT == "eq":
+                    sid = node.sid
+                    opdNids = node.opdNids
+                    sort = self.exp_map[sid]
+                    left = self.exp_map[opdNids[0]]
+                    right = self.exp_map[opdNids[1]]
+                    exp = EqExp(node.nodeID.id, sort, left, right)
+                elif node.opT == "not":
+                    sid = node.sid
+                    opdNids = node.opdNids
+                    sort = self.exp_map[sid]
+                    subExp = self.exp_map[opdNids[0]]
+                    exp = NotExp(node.nodeID.id, sort, subExp)
                 else:
                     sid = node.sid
                     opdNids = node.opdNids
@@ -783,6 +930,7 @@ class Btor2():
                 pre = self.exp_map[prenid]
                 exp = NextExp(node.nodeID.id, sort, cur, pre)
                 self.exp_map[exp.id] = exp
+                self.next_map[exp.id] = exp
 
             elif isinstance(node, InitKind):
                 sid = node.sid
@@ -793,6 +941,7 @@ class Btor2():
                 initVal = self.exp_map[valid]
                 exp = InitExp(node.nodeID.id, sort, toInit, initVal)
                 self.exp_map[exp.id] = exp
+                self.init_map[exp.id] = exp
 
             elif isinstance(node, PropertyKind):
                 kind = node.kind
@@ -800,6 +949,7 @@ class Btor2():
                 nExp = self.exp_map[nid]
                 exp = PropertyExp(node.nodeID.id, kind, nExp)
                 self.exp_map[exp.id] = exp
+                self.prop_map[exp.id] = exp
 
             elif isinstance(node, JusticeKind):
                 exp = JusticeExp(node.nodeID.id, node.nids)
@@ -815,3 +965,21 @@ class Btor2():
             print(preCondition)
         else:
             print(self.exp_map[nid])
+
+    def toTS_PySmtFormat(self):
+        vars = []
+        inits = []
+        nexts = []
+        props = []
+        for varExp in self.var_map.values():
+            vars.append(varExp.toPySmt())
+        for initExp in self.init_map.values():
+            inits.append(initExp.toPySmt())
+        for nextExp in self.next_map.values():
+            nexts.append(nextExp.toPySmt())
+        for propExp in self.prop_map.values():
+            props.append(propExp.toPySmt())
+
+        return TransitionSystem(vars,And(inits),And(nexts)) , props
+
+        print(1)

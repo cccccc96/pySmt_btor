@@ -1,8 +1,10 @@
 
 
-from pysmt.shortcuts import Symbol, Not, And, Or, EqualsOrIff, Implies, Ite, Int,BV
+from pysmt.shortcuts import Symbol, Not, And, Ite, BV,BVNot,BVAnd,BVComp,Equals
 from pysmt.shortcuts import is_sat, is_unsat, Solver, TRUE, FALSE
 from pysmt.typing import BOOL, BVType
+
+import btor2parser
 
 
 def next_var(v):
@@ -15,8 +17,9 @@ def at_time(v, t):
 
 
 class TransitionSystem(object):
-    """Trivial representation of a Transition System."""
-
+    # T(a,b,next(a),next(b),...)
+    # 0-1时刻 T(a0,b0,a1,b1,..)
+    # 1-2时刻 T(a0,b0,a1,b1,..)
     def __init__(self, variables, init, trans):
         self.variables = variables
         self.init = init
@@ -93,6 +96,11 @@ class TransExp(Exp):
     def __init__(self, next: VarExp, cur):
         self.val = next_var(next.val).Equals(cur.val)
 
+
+
+
+
+
 class BMC(object):
 
     def __init__(self, system):
@@ -123,7 +131,7 @@ class BMC(object):
         return And(res)
 
     def get_bmc(self, prop, k):
-        """Returns the BMC encoding at step k"""
+        """init /\ path /\ notP """
         init_0 = self.system.init.substitute(self.get_subs(0))
         path_0_k = self.get_paths(k)
         prop_0_k = self.get_notProps(prop, k)
@@ -143,6 +151,12 @@ class Test():
     # 根据counter.btor2的格式 定义一下迁移系统
     def counter(self):
         # btor2中的input/state 定义成VarExp
+
+        x = Equals(Symbol("x",BVType(1)),BV(1,1))
+
+        x2 = Ite(x,BV(1,1),BV(1,1))
+
+
         node2 = VarExp("node2",Bitvec(1))
         node3 = VarExp("node3",Bitvec(1))
         node6 = VarExp("node6",Bitvec(4))
@@ -174,9 +188,10 @@ class Test():
         return TransitionSystem(variables, init, trans) , node10.val
 
     def run_test(self):
-        transitionSystem,prop =self.counter()
+        prot =btor2parser.parse_file("case/counter.btor2")
+        transitionSystem,prop = prot.toTS_PySmtFormat()
         bmc = BMC(transitionSystem)
-        bmc.run_bmc(prop,2)
+        bmc.run_bmc(prop[0],2)
 
 
 
