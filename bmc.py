@@ -1,6 +1,6 @@
 
 
-from pysmt.shortcuts import Symbol, Not, And, Ite, BV,BVNot,BVAnd,BVComp,Equals
+from pysmt.shortcuts import Symbol, Not, And, Ite, BV,BVNot,BVAnd,BVComp,Equals,Array,ArrayType
 from pysmt.shortcuts import is_sat, is_unsat, Solver, TRUE, FALSE
 from pysmt.typing import BOOL, BVType
 
@@ -24,81 +24,6 @@ class TransitionSystem(object):
         self.variables = variables
         self.init = init
         self.trans = trans
-
-class Sort():
-    pass
-
-
-class Bitvec(Sort):
-    def __init__(self, len):
-        self.len = len
-
-
-class Array(Sort):
-    def __init__(self, s1, s2):
-        self.s1 = s1
-        self.s2 = s2
-
-
-class Exp():
-    pass
-
-
-class VarExp(Exp):
-    def __init__(self, name: str, sort: Sort):
-        if isinstance(sort, Bitvec):
-            if sort.len==1:
-                self.val = Symbol(name, BOOL)
-            else:
-                self.val = Symbol(name, BVType(sort.len))
-        elif isinstance(sort, Array):
-            assert "Array 待完善"
-
-
-class ConstExp(Exp):
-    def __init__(self,sort, val):
-        if isinstance(sort, Bitvec):
-            if sort.len==1 and val ==0:
-                self.val = FALSE()
-            elif sort.len==1 and val ==1:
-                self.val = TRUE()
-            elif sort.len!=1:
-                self.val = BV(val,sort.len)
-        elif isinstance(sort,Array):
-            assert "array 待完善"
-
-class NotExp(Exp):
-    def __init__(self, subExp):
-        self.val= Not(subExp.val)
-
-class IteExp(Exp):
-    def __init__(self, iff, left, right):
-        self.val = Ite(iff.val, left.val, right.val)
-
-class AndExp(Exp):
-    def __init__(self, left, right):
-        self.val = And(left.val, right.val)
-
-class AddExp(Exp):
-    def __init__(self, left, right):
-        self.val = left.val + right.val
-
-class EqExp(Exp):
-    def __init__(self, left, right):
-        self.val = left.val.Equals(right.val)
-
-class InitExp(Exp):
-    def __init__(self, state:VarExp, const:ConstExp):
-        # 如果是bitvec就用equals，如果是Bool处理成布尔逻辑的形式(state/!state)
-        self.val = state.val.Equals(const.val)
-
-class TransExp(Exp):
-    def __init__(self, next: VarExp, cur):
-        self.val = next_var(next.val).Equals(cur.val)
-
-
-
-
 
 
 class BMC(object):
@@ -147,47 +72,13 @@ class BMC(object):
 
 
 class Test():
-    # 看一下如果按照btor2格式定义迁移系统要怎么写
-    # 根据counter.btor2的格式 定义一下迁移系统
-    def counter(self):
-        # btor2中的input/state 定义成VarExp
-
-        x = Equals(Symbol("x",BVType(1)),BV(1,1))
-
-        x2 = Ite(x,BV(1,1),BV(1,1))
-
-
-        node2 = VarExp("node2",Bitvec(1))
-        node3 = VarExp("node3",Bitvec(1))
-        node6 = VarExp("node6",Bitvec(4))
-        variables = [node2.val,node3.val,node6.val]
-
-        # btor2中的const 定义成ConstExp
-        node5 = ConstExp(Bitvec(4),1)
-        node19 = ConstExp(Bitvec(4),15)
-
-        # btor2中的各个操作符号 定义成相对的Exp
-        node18 = AddExp(node6,node5)
-        node20 = EqExp(node6,node19)
-        node21 = IteExp(node20,node5,node18)
-        node22 = IteExp(node3,node21,node6)
-
-        # btor2中的init 定义成InitExp
-        node7 = InitExp(node6,node5)
-        init = node7.val
-
-        # btor2中的next 定义成TransExp
-        node23 = TransExp(node6,node22)
-        trans = node23.val
-
-        # property
-        node8=ConstExp(Bitvec(4),0)
-        node9 = EqExp(node6,node8)
-        node10 = NotExp(node9)
-
-        return TransitionSystem(variables, init, trans) , node10.val
 
     def run_test(self):
+        # x=BV(2,2)
+        # y = ArrayType(BVType(2),BVType(2))
+        # x=Array(BVType(2),BV(2,4))
+        x= Symbol("name1",BVType(1))
+        y = Symbol("name2", ArrayType(BVType(1),BVType(2)))
         prot =btor2parser.parse_file("case/counter.btor2")
         transitionSystem,prop = prot.toTS_PySmtFormat()
         bmc = BMC(transitionSystem)
