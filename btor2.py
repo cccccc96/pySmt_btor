@@ -761,12 +761,12 @@ class Btor2():
         props = []
         for varExp in self.var_map.values():
             vars.append(varExp.toPySmt(self.sort_map))
-        for initExp in self.init_map.values():
-            inits.append(initExp.toPySmt(self.sort_map))
-        for nextExp in self.next_map.values():
-            nexts.append(nextExp.toPySmt(self.sort_map))
-        for propExp in self.prop_map.values():
-            props.append(propExp.toPySmt(self.sort_map))
+        for init in self.init_map.values():
+            inits.append(init.toPySmt(self.sort_map))
+        for next in self.next_map.values():
+            nexts.append(next.toPySmt(self.sort_map))
+        for prop in self.prop_map.values():
+            props.append(prop.toPySmt(self.sort_map))
 
         return TransitionSystem(vars, And(inits), And(nexts)), props
 

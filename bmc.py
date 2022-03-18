@@ -1,6 +1,6 @@
 
 
-from pysmt.shortcuts import Symbol, Not, And, Ite, BV,BVNot,BVAnd,BVComp,Equals,Array,ArrayType
+from pysmt.shortcuts import Symbol, Not, And, Ite, BV,BVNot,BVAnd,BVComp,Equals,Array,ArrayType,get_model
 from pysmt.shortcuts import is_sat, is_unsat, Solver, TRUE, FALSE
 from pysmt.typing import BOOL, BVType
 
@@ -64,7 +64,7 @@ class BMC(object):
 
     def run_bmc(self, prop, k):
         f = self.get_bmc(prop,k)
-        print(f)
+        print(get_model(f))
         if is_sat(f):
             print("bug find")
         if is_unsat(f):
@@ -82,7 +82,7 @@ class Test():
         prot =btor2parser.parse_file("case/counter.btor2")
         transitionSystem,prop = prot.toTS_PySmtFormat()
         bmc = BMC(transitionSystem)
-        bmc.run_bmc(prop[0],2)
+        bmc.run_bmc(prop[1],2)
 
 
 
