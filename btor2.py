@@ -440,6 +440,25 @@ class UifExp(expType):
         return isinstance(other,
                           UifExp) and self.sortId == other.sortId and self.id == other.id and self.es == other.es and self.op == other.op
 
+    def toPySmt(self,sort_map):
+        if self.op=="eq":
+            left = self.es[0]
+            right = self.es[1]
+            return Equals(left.toPySmt(sort_map), right.toPySmt(sort_map))
+        elif self.op=="not":
+            subExp = self.es[0]
+            return Not(subExp.toPySmt(sort_map))
+        elif self.op=="and":
+            left = self.es[0]
+            right = self.es[1]
+            return And(left.toPySmt(sort_map), right.toPySmt(sort_map))
+        elif self.op=="add":
+            left = self.es[0]
+            right = self.es[1]
+            return left.toPySmt(sort_map) + right.toPySmt(sort_map)
+        else:
+            assert "not support"
+
 
 class UifIndExp(expType):
     def __init__(self, sortId, op, es, id, opNats):
@@ -518,49 +537,6 @@ class StoreExp(expType):
         return isinstance(other,
                           StoreExp) and self.sortId == other.sortId and self.mem == other.mem and self.adre == other.adre and self.content == other.content and self.id == other.id
 
-
-# 增加了点op
-class AddExp(expType):
-    def __init__(self, sortId, left, right, id):
-        self.id = id
-        self.sortId = sortId
-        self.left = left
-        self.right = right
-
-    def toPySmt(self,sort_map):
-        return self.left.toPySmt(sort_map) + self.right.toPySmt(sort_map)
-
-
-class AndExp(expType):
-    def __init__(self, sortId, left, right, id):
-        self.id = id
-        self.sortId = sortId
-        self.left = left
-        self.right = right
-
-    def toPySmt(self,sort_map):
-        return And(self.left.toPySmt(sort_map), self.right.toPySmt(sort_map))
-
-
-class NotExp(expType):
-    def __init__(self, sortId, subExp, id):
-        self.id = id
-        self.sortId = sortId
-        self.subExp = subExp
-
-    def toPySmt(self,sort_map):
-        return Not(self.subExp.toPySmt(sort_map))
-
-
-class EqExp(expType):
-    def __init__(self, sortId, left, right, id):
-        self.id = id
-        self.sortId = sortId
-        self.left = left
-        self.right = right
-
-    def toPySmt(self,sort_map):
-        return Equals(self.left.toPySmt(sort_map), self.right.toPySmt(sort_map))
 
 
 # 存储init信息
@@ -735,29 +711,6 @@ class Btor2():
                     adr = self.exp_map[opdNids[1]]
                     content = self.exp_map[opdNids[2]]
                     exp = StoreExp(sortId, mem, adr, content, node.nodeID.id)
-                elif node.opT == "add":
-                    sortId = node.sid
-                    opdNids = node.opdNids
-                    left = self.exp_map[opdNids[0]]
-                    right = self.exp_map[opdNids[1]]
-                    exp = AddExp(sortId, left, right, node.nodeID.id)
-                elif node.opT == "and":
-                    sortId = node.sid
-                    opdNids = node.opdNids
-                    left = self.exp_map[opdNids[0]]
-                    right = self.exp_map[opdNids[1]]
-                    exp = AndExp(sortId, left, right, node.nodeID.id)
-                elif node.opT == "eq":
-                    sortId = node.sid
-                    opdNids = node.opdNids
-                    left = self.exp_map[opdNids[0]]
-                    right = self.exp_map[opdNids[1]]
-                    exp = EqExp(sortId, left, right, node.nodeID.id)
-                elif node.opT == "not":
-                    sortId = node.sid
-                    opdNids = node.opdNids
-                    subExp = self.exp_map[opdNids[0]]
-                    exp = NotExp(sortId, subExp, node.nodeID.id)
                 else:
                     sortId = node.sid
                     opdNids = node.opdNids
