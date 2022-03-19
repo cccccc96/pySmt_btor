@@ -1,7 +1,10 @@
 from enum import Enum
-from sqlite3 import OptimizedUnicode
-from tkinter.simpledialog import SimpleDialog
 from debug import SIMULATION_KIND, TREE_DISPLAY
+from pysmt.shortcuts import Symbol, Not, And, Ite, BV, Equals
+from pysmt.shortcuts import is_sat, is_unsat, Solver, TRUE, FALSE
+from pysmt.typing import BOOL, BVType
+from PySmtUtil import next_var,at_time,TransitionSystem
+import btor2parser
 
 
 # def indent(s, num_space, first_line=None):
@@ -19,19 +22,6 @@ class BtorType:
     pass
 
 
-class stateType():
-    def __init__(self, sid, name=None):
-        self.sid = sid
-        self.name = name
-
-    def __str__(self):
-        return "state %d" % (self.sid)
-
-    def __repr__(self):
-        return "stateType(%d)" % (self.sid)
-
-    def __eq__(self, other):
-        return isinstance(other, stateType) and self.sid == other.sid
 
 
 class bvType(BtorType):
@@ -92,40 +82,6 @@ class nodeId:
     def __eq__(self, other):
         return isinstance(other, nodeId) and self.id == other.id
 
-
-# class sortType:
-#     pass
-#
-#
-# class BvSort(sortType):
-#     def __init__(self, sid, bvt):
-#         self.sid = sid
-#         self.bvt = bvt
-#
-#     def __str__(self):
-#         return "BvSort %s %s" % (str(self.sid), str(self.bvt))
-#
-#     def __repr__(self):
-#         return "BvSort %s %s" % (str(self.sid), str(self.bvt))
-#
-#     def __eq__(self, other):
-#         return isinstance(other, BvSort) and self.sid == other.sid and self.bvt == other.bvt
-#
-#
-# class ArraySort(sortType):
-#     def __init__(self, sid, arrt):
-#         self.sid = sid
-#         self.arrt = arrt
-#
-#     def __str__(self):
-#         return "ArraySort %s %s" % (str(self.sid), str(self.arrt))
-#
-#     def __repr__(self):
-#         return "ArraySort %s %s" % (str(self.sid), str(self.arrt))
-#
-#     def __eq__(self, other):
-#         return isinstance(other, ArraySort) and self.sid == other.sid and self.arrt == other.arrt
-#
 
 class inputEnum(Enum):
     input = 0
@@ -237,7 +193,14 @@ class SortKind(nodeType):
         return "Sort %s @%s" % (str(self.nodeID), str(self.bv_or_arr))
 
     def __eq__(self, other):
-        return isinstance(other, SortKind) and self.nid == other.nid and self.nodeID == other.nodeID
+        return isinstance(other, SortKind)  and self.nodeID == other.nodeID
+
+    def toPySmt(self,sort_map):
+        if isinstance(self.bv_or_arr,bvType):
+            if self.bv_or_arr.len==1:
+                return BOOL
+            else:
+                return BVType(self.bv_or_arr.len)
 
 
 class InputKind(nodeType):
@@ -257,18 +220,18 @@ class InputKind(nodeType):
 
 
 class StateKind(nodeType):
-    def __init__(self, nid, state: stateType):
-        self.state = state
+    def __init__(self, nid, state):
+        self.sid = state
         self.nodeID = nodeId(nid)
 
     def __str__(self):
-        return "State %s @%s" % (str(self.state), str(self.nodeID))
+        return "State %s @%s" % (str(self.sid), str(self.nodeID))
 
     def __repr__(self):
-        return "State %s @%s" % (str(self.state), str(self.nodeID))
+        return "State %s @%s" % (str(self.sid), str(self.nodeID))
 
     def __eq__(self, other):
-        return isinstance(other, StateKind) and self.nodeID == other.nodeID and self.state == other.state
+        return isinstance(other, StateKind) and self.nodeID == other.nodeID and self.sid == other.sid
 
 
 class IndOpKind(nodeType):
@@ -384,215 +347,227 @@ class expType:
         return "exptype"
 
 
-class constEnum(Enum):
-    const = 0
-    constd = 1
-    consth = 2
-
-
-# const sortType val(整形/二进制/十六进制)
 class ConstExp(expType):
-    # def __init__(self, sortId, val:, id):
-    def __init__(self, id, typ: constEnum, sort: expType, val: str):
-        self.id = id
-        self.sort = sort
+    def __init__(self, sortId, val, id):
+        self.sortId = sortId
         self.val = val
-        self.typ = typ
-        self.indent_num = 0
+        self.id = id
 
     def __str__(self):
-        if SIMULATION_KIND:
-            return "(const %s %s)" % (str(self.sort), str(self.val))
+        return " %s %s %s " % (str(self.sortId), str(self.val), str(self.id))
+
+    def __repr__(self):
+        return "const %s %s %s" % (str(self.sortId), str(self.val), str(self.id))
+
+    def __eq__(self, other):
+        return isinstance(other,
+                          ConstExp) and self.sortId == other.sortId and self.id == other.id and self.val == other.val
+
+    def toPySmt(self,sort_map):
+        sort = sort_map[self.sortId].bv_or_arr
+        if isinstance(sort, bvType):
+            val = int(self.val, 2)
+            if sort.len == 1 and val == 0:
+                return FALSE()
+            elif sort.len == 1 and val == 1:
+                return TRUE()
+            elif sort.len != 1:
+                return BV(val, sort.len)
         else:
-            if TREE_DISPLAY:
-                return "%s%s" % (' ' * self.indent_num, str(self.val))
-            else:
-                return str(self.val)
+            assert "Array 待完善"
 
 
-class BVExp(expType):
-    def __init__(self, id, len):
+
+class VarExp(expType):
+    def __init__(self, sortId, id, name=None):
+        self.sortId = sortId
         self.id = id
-        self.len = len
-
-    def __str__(self):
-        return "%s-bv" % (str(self.len))
-
-
-class ArrayExp(expType):
-    def __init__(self, id, size: expType, len: expType):
-        self.id = id
-        self.len = len
-        self.size = size
-
-    def __str__(self):
-        return "arr[%s][%s]" % (str(self.len), str(self.len))
-
-
-class StateExp(expType):
-    def __init__(self, id, sort: expType, name=None):
-        self.id = id
-        self.sort = sort
-        self.name = name
-        self.indent_num = 0
-        self.pre = None
-
-    def __str__(self):
-        if self.name != None:
-            if SIMULATION_KIND:
-                return "state-%s" % (self.name)
-            else:
-                if TREE_DISPLAY:
-                    return ' ' * self.indent_num + ("%s" % self.name)
-                else:
-                    return self.name
+        if name is None:
+            self.name = "node" + str(id)
         else:
-            # return "state[%s]]" % (str(self.sort))
-            if TREE_DISPLAY:
-                return ' ' * self.indent_num + "state%s" % (str(self.id))
-            else:
-                return "state%s" % (str(self.id))
+            self.name = name
+
+    def __str__(self):
+        return " %s   %s " % (str(self.sortId), str(self.id))
+
+    def __repr__(self):
+        return "Var %s   %s" % (repr(self.sortId), repr(self.id))
+
+    def toPySmt(self,sort_map):
+        typename = sort_map[self.sortId].toPySmt(sort_map)
+        name = self.name
+        return Symbol(name, typename)
 
 
 class InputExp(expType):
-    def __init__(self, id, typ: inputEnum, sort: expType, name=None):
+    def __init__(self, sortId, id, name=None):
+        self.sortId = sortId
         self.id = id
-        self.typ = typ
-        self.sort = sort
-        self.indent_num = 0
-        self.name = name
+        if name is None:
+            self.name = "node" + str(id)
+        else:
+            self.name = name
 
     def __str__(self):
-        if self.name is not None:
-            if SIMULATION_KIND:
-                return "input_%s" % (str(self.sort))
-            else:
-                if TREE_DISPLAY:
-                    return "%s%s" % (' ' * self.indent_num, self.name)
-                else:
-                    return "%s" % self.name
-        else:
-            return "%sinput_%d" % (' ' * self.indent_num, self.id)
+        return "%s   %s " % (str(self.sortId), str(self.id))
+
+    def __repr__(self):
+        return "Input %s   %s" % (repr(self.sortId), repr(self.id))
+
+    def __eq__(self, other):
+        return isinstance(other, InputExp) and self.sortId == other.sortId and self.id == other.id
+
+    def toPySmt(self,sort_map):
+        typename = sort_map[self.sortId].toPySmt(sort_map)
+        name = self.name
+        return Symbol(name, typename)
 
 
-# id op sExp(sid) list_nExp(nid*)
 class UifExp(expType):
-    def __init__(self, id, op: str, sExp: expType, nExp, indent_num=0):
-        self.id = id
+    def __init__(self, sortId, op, es, id):
+        self.sortId = sortId
         self.op = op
-        self.sExp = sExp # ?
-        self.nExp = nExp
-        self.indent_num = indent_num
-
-    def __str__(self):
-        if TREE_DISPLAY:
-            if len(self.nExp) == 2:
-                self.nExp[0].indent_num = self.indent_num + 2
-                self.nExp[1].indent_num = self.indent_num + 2
-                str1 = ' ' * self.indent_num + str(self.op)
-                str2 = '\n' + ' ' * self.indent_num + str(self.nExp[0])
-                str3 = '\n' + ' ' * self.indent_num + str(self.nExp[1])
-                return str1 + str2 + str3
-            elif len(self.nExp) == 1:
-                self.nExp[0].indent_num = self.indent_num + 2
-                return "%s%s\n%s" % (' ' * self.indent_num, str(self.op), ' '.join(str(n) for n in self.nExp))
-            else:
-                return "error-UifExp"
-        else:
-            if len(self.nExp) == 2:
-                self.nExp[0].indent_num = self.indent_num + 2
-                self.nExp[1].indent_num = self.indent_num + 2
-                return "(%s %s %s)" % (str(self.op), str(self.nExp[0]), str(self.nExp[1]))
-            elif len(self.nExp) == 1:
-                self.nExp[0].indent_num = self.indent_num + 2
-                return "(%s %s)" % (str(self.op), str(self.nExp[0]))
-            else:
-                return "error-UifExp"
-
-
-# id opidx sExp(sid) nExp(nid) vals(int list)
-class UifIndExp(expType):
-    def __init__(self, id, opidx, sExp: expType, nExp: expType, vals):
+        self.es = es
         self.id = id
-        self.opidx = opidx
-        self.sExp = sExp
-        self.nExp = nExp
-        self.vals = vals
 
     def __str__(self):
-        return "(%s %s %s %s)" % (str(self.op), str(self.sExp), str(self.nExp), str(self.vals))
+        return "%s( %s ) :%s   " % (self.op, self.es, str(self.sortId))
+
+    def __repr__(self):
+        return "UifExp %s( %s): %s  @Node %s" % (self.op, self.es, str(self.sortId), str(self.id))
+
+    def __eq__(self, other):
+        return isinstance(other,
+                          UifExp) and self.sortId == other.sortId and self.id == other.id and self.es == other.es and self.op == other.op
+
+    def toPySmt(self,sort_map):
+        if self.op=="eq":
+            left = self.es[0]
+            right = self.es[1]
+            return Equals(left.toPySmt(sort_map), right.toPySmt(sort_map))
+        elif self.op=="not":
+            subExp = self.es[0]
+            return Not(subExp.toPySmt(sort_map))
+        elif self.op=="and":
+            left = self.es[0]
+            right = self.es[1]
+            return And(left.toPySmt(sort_map), right.toPySmt(sort_map))
+        elif self.op=="add":
+            left = self.es[0]
+            right = self.es[1]
+            return left.toPySmt(sort_map) + right.toPySmt(sort_map)
+        else:
+            assert "not support"
+
+
+class UifIndExp(expType):
+    def __init__(self, sortId, op, es, id, opNats):
+        self.sortId = sortId
+        self.op = op
+        self.es = es
+        self.id = id
+        self.opdNats = opNats
+
+    def __str__(self):
+        return "%s( %s,%s ) :%s   " % (self.op, self.es, self.opNats, str(self.sortId))
+
+    def __repr__(self):
+        return "UifIdExp %s( %s,%s ) :%s   " % (self.op, self.es, self.opNats, str(self.sortId))
+
+    def __eq__(self, other):
+        return isinstance(other,
+                          UifIndExp) and self.sortId == other.sortId and self.id == other.id and self.es == other.es and self.op == other.op and self.opdNats == other.opNats
 
 
 class ReadExp(expType):
-    def __init__(self, id, sort: expType, mem: expType, adr: expType):
-        self.id = id
+    def __init__(self, sortId, mem, adr, id):
+        self.sortId = sortId
         self.mem = mem
         self.adr = adr
-        self.sort = sort
+        self.id = id
 
     def __str__(self):
-        return "%s[%s]" % (str(self.mem), str(self.adr).replace(' ', ''))
+        return "%s[%s]  :%s   " % (self.mem, self.adr, str(self.sortId))
+
+    def __repr__(self):
+        return "mem %s[ %s]: %s  @Node %s" % (self.mem, self.adr, str(self.sortId), str(self.id))
+
+    def __eq__(self, other):
+        return isinstance(other,
+                          ReadExp) and self.sortId == other.sortId and self.mem == other.mem and self.id == other.id and self.adr == other.adr
 
 
-# b? e1: e2
 class IteExp(expType):
-    def __init__(self, id, sort: expType, b: expType, e1: expType, e2: expType, indent_num):
-        self.id = id
+    def __init__(self, sortId, b, e1, e2, id):
+        self.sortId = sortId
         self.b = b
-        self.sort = sort
         self.e1 = e1
         self.e2 = e2
-        self.indent_num = indent_num
+        self.id = id
 
     def __str__(self):
-        if TREE_DISPLAY:
-            self.b.indent_num = self.indent_num + 4
-            self.e1.indent_num = self.indent_num + 4
-            self.e2.indent_num = self.indent_num + 4
-            str1 = '%sif\n' % (' ' * self.indent_num) + str(self.b)
-            str2 = '\n%sdo\n' % (' ' * self.indent_num) + str(self.e1)
-            str3 = '\n%selse\n' % (' ' * self.indent_num) + str(self.e2)
-            return str1 + str2 + str3
-        else:
-            return "(%s? %s: %s)" % (str(self.e1), str(self.b), str(self.e2))
+        return "?%s:%s,%s  :%s   " % (self.b, self.e1, self.e2, str(self.sortId))
+
+    def __repr__(self):
+        return "IteExp ?%s:%s,%s  :%ss" % (self.b, self.e1, self.e2, str(self.sortId))
+
+    def __eq__(self, other):
+        return isinstance(other,
+                          IteExp) and self.sortId == other.sortId and self.b == other.b and self.e1 == other.e1 and self.e2 == other.e2 and self.id == other.id
+
+    def toPySmt(self,sort_map):
+        return Ite(self.b.toPySmt(sort_map),self.e1.toPySmt(sort_map), self.e2.toPySmt(sort_map))
 
 
 class StoreExp(expType):
-    def __init__(self, id, sort: expType, mem: expType, adr: expType, content: expType):
-        self.id = id
-        self.sort = sort
+    def __init__(self, sortId, mem, adre, content, id):
+        self.sortId = sortId
         self.mem = mem
-        self.adr = adr
+        self.adre = adre
         self.content = content
+        self.id = id
 
     def __str__(self):
-        return "%s[%s]:=%s" % (str(self.mem), str(self.adr).replace(' ', ''), str(self.content))
+        return "%s[%s]<=%s  :%s   " % (self.mem, self.adre, self.content, str(self.sortId))
+
+    def __repr__(self):
+        return "%s[%s]<=%s  :%s" % (self.mem, self.adre, self.content, str(self.sortId))
+
+    def __eq__(self, other):
+        return isinstance(other,
+                          StoreExp) and self.sortId == other.sortId and self.mem == other.mem and self.adre == other.adre and self.content == other.content and self.id == other.id
 
 
-# toInit 初始化为 initval
-class InitExp(expType):
-    def __init__(self, id, sort, toInit: expType, initVal: expType):
+
+# 存储init信息
+class Init():
+    def __init__(self, sortId, toInit: expType, initVal: expType, id):
         self.id = id
-        self.sort = sort
+        self.sortId = sortId
         self.toInit = toInit
         self.initVal = initVal
 
     def __str__(self):
         return "(initial:%s is %s)" % (str(self.toInit), str(self.initVal))
 
+    def toPySmt(self,sort_map):
+        return self.toInit.toPySmt(sort_map).Equals(self.initVal.toPySmt(sort_map))
 
-# toInit 初始化为 initval
-class NextExp(expType):
-    def __init__(self, id, sort, cur: expType, pre: expType):
+
+# 存储next信息
+class Next():
+    def __init__(self, sortId, cur: expType, pre: expType, id):
         self.id = id
-        self.sort = sort
+        self.sortId = sortId
         self.cur = cur
         self.pre = pre
-        cur.pre = self.pre
 
     def __str__(self):
         return "(next %s : %s)" % (str(self.pre), str(self.cur))
         # return str(self.pre)
+
+    def toPySmt(self,sort_map):
+        return next_var(self.cur.toPySmt(sort_map)).Equals(self.pre.toPySmt(sort_map))
 
 
 class PropertyEnum(Enum):
@@ -602,8 +577,9 @@ class PropertyEnum(Enum):
     output = 3
 
 
-class PropertyExp(expType):
-    def __init__(self, id, kind: str, nExp: expType):
+# 存储bad/constrain...
+class Property():
+    def __init__(self, kind: str, nExp: expType, id):
         self.id = id
         if kind == "bad":
             self.kind = PropertyEnum.bad
@@ -618,8 +594,12 @@ class PropertyExp(expType):
     def __str__(self):
         return "%s:\n%s" % (str(self.kind), str(self.nExp))
 
+    def toPySmt(self,sort_map):
+        return self.nExp.toPySmt(sort_map)
 
-class JusticeExp(expType):
+
+# 存储justice
+class Justice():
     def __init__(self, id, num: str, nExps):
         self.id = id
         self.num = num
@@ -631,52 +611,30 @@ class JusticeExp(expType):
 
 def findNodes(exp: expType):
     nodes = []
-    
+
     if isinstance(exp, UifExp):
         nodes.append(exp.nExp)
 
     return nodes
 
 
-class preExp(expType):
-    def __init__(self, nowExp: expType):
-        self.nowExp = nowExp
-        self.preExp = self.preExp_dfs(self.nowExp)
 
-    def __str__(self):
-        return "%s" % str(self.preExp)
-
-    def preExp_dfs(self, exp: expType):
-
-        if isinstance(exp, StateExp):
-            # print("4-------", exp, exp.pre)
-            exp = exp.pre
-            return exp
-        
-        if isinstance(exp, UifExp):
-            # print("3-------", exp)
-            if len(exp.nExp) == 2:
-                exp.nExp[0] = self.preExp_dfs(exp.nExp[0])
-                exp.nExp[1] = self.preExp_dfs(exp.nExp[1])
-            if len(exp.nExp) == 1:
-                exp.nExp[0] = self.preExp_dfs(exp.nExp[0])
-        if isinstance(exp, PropertyExp):
-            # print("2-------", exp)
-            exp.nExp = self.preExp_dfs(exp.nExp)
-
-        # print("1------", exp)
-        return exp
 
 
 class Btor2():
     def __init__(self, lines):
+        self.sort_map = {}
         self.node_map = {}
         self.exp_map = {}
+        self.next_map = {}  # next
+        self.init_map = {}  # init
+        self.prop_map = {}  # 属性
+        self.var_map = {}  # 变量input/state
 
         for line in lines:
             if isinstance(line[0], StateKind):
                 if len(line) > 1:
-                    line[0].state.name = line[1]
+                    line[0].name = line[1]
             if isinstance(line[0], InputKind):
                 if len(line) > 1:
                     line[0].name = line[1]
@@ -689,129 +647,127 @@ class Btor2():
 
             # sortkind bv/arr
             if isinstance(node, SortKind):
-                if isinstance(node.bv_or_arr, bvType):
-                    exp = BVExp(node.nodeID.id, node.bv_or_arr.len)
-                elif isinstance(node.bv_or_arr, ArrayType):
-                    size = self.exp_map[(node.bv_or_arr.ele_typ)]
-                    x_len = self.exp_map[(node.bv_or_arr.len)]
-                    exp = ArrayExp(node.nodeID.id, size, x_len)
-                self.exp_map[exp.id] = exp
+                self.sort_map[node.nodeID.id] = node
 
             # inputkind input/const
             elif isinstance(node, InputKind):
                 if isinstance(node.inpT, input1Type):
-                    typ = node.inpT.inpEnum
-                    sort = self.exp_map[(node.inpT.sortId)]
-                    exp = InputExp(node.nodeID.id, typ, sort, node.name)
+                    sortId = node.inpT.sortId
+                    exp = InputExp(sortId, node.nodeID.id, node.name)
+                    self.var_map[exp.id] = exp
                 elif isinstance(node.inpT, constType):
-                    typ = constEnum.const
-                    sort = self.exp_map[node.inpT.sortId]
+                    sortId = node.inpT.sortId
                     val = node.inpT.val
-                    exp = ConstExp(node.nodeID.id, typ, sort, val)
+                    exp = ConstExp(sortId, val, node.nodeID.id)
                 elif isinstance(node.inpT, constdType):
-                    typ = constEnum.constd
-                    sort = self.exp_map[node.inpT.sortId]
+                    sortId = node.inpT.sortId
                     val = node.inpT.val
-                    exp = ConstExp(node.nodeID.id, typ, sort, val)
+                    exp = ConstExp(sortId, val, node.nodeID.id)
                 elif isinstance(node.inpT, consthType):
-                    typ = constEnum.consth
-                    sort = self.exp_map[node.inpT.sortId]
+                    sortId = node.inpT.sortId
                     val = node.inpT.val
-                    exp = ConstExp(node.nodeID.id, typ, sort, val)
+                    exp = ConstExp(sortId, val, node.nodeID.id)
                 self.exp_map[exp.id] = exp
 
-            # inputkind state
+
+            # statekind
             elif isinstance(node, StateKind):
-                sort = self.exp_map[node.state.sid]
-                exp = StateExp(node.nodeID.id, sort, node.state.name)
+                print(1)
+                sortId = node.sid
+                exp = VarExp(sortId, node.nodeID.id, node.name)
                 self.exp_map[exp.id] = exp
+                self.var_map[exp.id] = exp
 
             # opidx 一个定义都没有，都是uifindexp
             elif isinstance(node, IndOpKind):
+                sortId = node.sid
                 op = node.opT
-                exp1 = self.exp_map[node.sid]
-                exp2 = self.exp_map[node.opdNid]
+                es = self.exp_map[node.opdNid]
                 vals = [node.ns1, node.ns2]
-                exp = UifIndExp(node.nodeID.id, op, exp1, exp2, vals)
+                exp = UifIndExp(sortId, op, es, node.nodeID.id, vals)
                 self.exp_map[exp.id] = exp
 
             # op 只有readexp/iteexp/storeexp， 其他都是uifexp
             elif isinstance(node, OpKind):
                 # ite
                 if node.opT == "ite":
-                    sid = node.sid
                     opdNids = node.opdNids
-                    sort = self.exp_map[sid]
+                    sortId = node.sid
                     b = self.exp_map[opdNids[0]]
                     e1 = self.exp_map[opdNids[1]]
                     e2 = self.exp_map[opdNids[2]]
-                    exp = IteExp(node.nodeID.id, sort, b, e1, e2, 0)
+                    exp = IteExp(sortId, b, e1, e2, node.nodeID.id)
                 # read
                 elif node.opT == "read":
-                    sid = node.sid
                     opdNids = node.opdNids
-                    sort = self.exp_map[sid]
+                    sortId = node.sid
                     mem = self.exp_map[opdNids[0]]
                     adr = self.exp_map[opdNids[1]]
-                    exp = ReadExp(node.nodeID.id, sort, mem, adr)
+                    exp = ReadExp(sortId, mem, adr, node.nodeID.id)
                 elif node.opT == "write":
-                    sid = node.sid
                     opdNids = node.opdNids
-                    sort = self.exp_map[sid]
+                    sortId = node.sid
                     mem = self.exp_map[opdNids[0]]
                     adr = self.exp_map[opdNids[1]]
                     content = self.exp_map[opdNids[2]]
-                    exp = StoreExp(node.nodeID.id, sort, mem, adr, content)
+                    exp = StoreExp(sortId, mem, adr, content, node.nodeID.id)
                 else:
-                    sid = node.sid
+                    sortId = node.sid
                     opdNids = node.opdNids
-                    sort = self.exp_map[sid]
-                    n = [self.exp_map[opdNids[0]]]
+                    es = [self.exp_map[opdNids[0]]]
                     if opdNids[1] is not None:
-                        n.append(self.exp_map[opdNids[1]])
+                        es.append(self.exp_map[opdNids[1]])
                     if opdNids[2] is not None:
-                        n.append(self.exp_map[opdNids[2]])
-                    exp = UifExp(node.nodeID.id, node.opT, sort, n, 0)
+                        es.append(self.exp_map[opdNids[2]])
+                    exp = UifExp(sortId, node.opT, es, node.nodeID.id)
                 self.exp_map[exp.id] = exp
 
             elif isinstance(node, NextKind):
-                sid = node.sid
+                sortId = node.sid
                 nid = node.nid
                 prenid = node.prenid
-                sort = self.exp_map[sid]
                 cur = self.exp_map[nid]
                 pre = self.exp_map[prenid]
-                exp = NextExp(node.nodeID.id, sort, cur, pre)
-                self.exp_map[exp.id] = exp
+                exp = Next(sortId, cur, pre, node.nodeID.id)
+                self.next_map[exp.id] = exp
 
             elif isinstance(node, InitKind):
-                sid = node.sid
+                sortId = node.sid
                 nid = node.nid
                 valid = node.val
-                sort = self.exp_map[sid]
                 toInit = self.exp_map[nid]
                 initVal = self.exp_map[valid]
-                exp = InitExp(node.nodeID.id, sort, toInit, initVal)
-                self.exp_map[exp.id] = exp
+                exp = Init(sortId, toInit, initVal, node.nodeID.id)
+                self.init_map[exp.id] = exp
 
             elif isinstance(node, PropertyKind):
                 kind = node.kind
                 nid = node.nid
                 nExp = self.exp_map[nid]
-                exp = PropertyExp(node.nodeID.id, kind, nExp)
-                self.exp_map[exp.id] = exp
+                exp = Property(kind, nExp, node.nodeID.id)
+                self.prop_map[exp.id] = exp
 
             elif isinstance(node, JusticeKind):
-                exp = JusticeExp(node.nodeID.id, node.nids)
-                self.exp_map[exp.id] = exp
+                exp = Justice(node.num, node.nids, node.nodeID.id)
+                self.prop_map[exp.id] = exp
 
             else:
                 print(str(node) + " : unkown!")
 
-    # display the exp_map of ine nid
-    def display(self, nid, pre=False):
-        if pre == True:
-            preCondition = preExp(self.exp_map[nid])
-            print(preCondition)
-        else:
-            print(self.exp_map[nid])
+    def toTS_PySmtFormat(self):
+        vars = []
+        inits = []
+        nexts = []
+        props = []
+        for varExp in self.var_map.values():
+            vars.append(varExp.toPySmt(self.sort_map))
+        for init in self.init_map.values():
+            inits.append(init.toPySmt(self.sort_map))
+        for next in self.next_map.values():
+            nexts.append(next.toPySmt(self.sort_map))
+        for prop in self.prop_map.values():
+            props.append(prop.toPySmt(self.sort_map))
+
+        return TransitionSystem(vars, And(inits), And(nexts)), props
+
+        print(1)
