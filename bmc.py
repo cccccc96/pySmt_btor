@@ -72,35 +72,3 @@ class BMC(object):
         if is_unsat(f):
             print("safe ")
 
-
-class Test():
-
-    def run_test(self):
-        # x=BV(2,2)
-        # y = ArrayType(BVType(2),BVType(2))
-        # x=Array(BVType(2),BV(2,4))
-        # a = ArrayType(BVType(1),BVType(1))
-        # a = ArrayType(BOOL,BOOL)
-        # x2 = Symbol("name1", BVType(4))
-        # x3 = BV(0,4)
-        # Not(EqualsOrIff(x2,x3))
-        #
-        # x1 = Symbol("name25",BVType(1))
-        # x2 = Symbol("name3", BVType(1))
-        # c = x1.get_type()
-        # BVAnd(BVAnd(x1,x2),x1)
-        #
-        # t = Equals(x1 , x2)
-        # x = t.get_type()
-        # if x is BOOL:
-        #     print(2)
-        # y = Symbol("name2", ArrayType(BVType(1),BVType(2)))
-        prot =btor2parser.parse_file("case/memory.btor2")
-        transitionSystem,prop = prot.toTS_PySmtFormat()
-        # bmc = BMC(transitionSystem)
-        # bmc.run_bmc(prop[1],2)
-
-
-
-if __name__ == "__main__":
-    Test().run_test()

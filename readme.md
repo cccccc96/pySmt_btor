@@ -41,5 +41,12 @@ idx操作符
 
 ### 待解决的问题
 主要还是pySmt怎么去设计
-* btor2里只有bitvec和array两类。pySmt也提供了对于bitvec的各种函数，但是这些函数的返回值不全是BV类型，有些函数返回BOOL类型，这在btor2里是没有的，这就有问题了（一个一个门往后加的时候有可能变成BOOL和bitvec做运算，就报错了）。
+* btor2里只有bitvec和array两类。pySmt也提供了对于bitvec的各种函数，但是有些函数（像BVult）返回的居然是BOOL类型，而不是Bitvec类型，这就有问题了（一个一个门往后加的时候有可能变成BOOL和bitvec做运算，就报错了）。
 * 再去查点pySmt的教程，或者去pono或者boolector里看看那些parser是咋弄的。
+
+## preExp
+现在的写法是每个exp里放一个preexp函数，参数是stmMap。
+相当于exp递归往下找，只要碰到var就按照stmMap替换，其他的不动。
+
+
+## preExp和ToPySmt的入口都放在main.py里

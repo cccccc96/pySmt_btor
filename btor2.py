@@ -1,6 +1,6 @@
 from enum import Enum
 from debug import SIMULATION_KIND, TREE_DISPLAY
-from pysmt import  shortcuts
+from pysmt import shortcuts
 from pysmt.shortcuts import *
 from pysmt.typing import *
 from PySmtUtil import next_var, at_time, TransitionSystem
@@ -352,10 +352,10 @@ class ConstExp(expType):
         self.id = id
 
     def __str__(self):
-        return " %s %s %s " % (str(self.sortId), str(self.val), str(self.id))
+        return str(self.val)
 
     def __repr__(self):
-        return "const %s %s %s" % (str(self.sortId), str(self.val), str(self.id))
+        return str(self.val)
 
     def __eq__(self, other):
         return isinstance(other,
@@ -371,6 +371,9 @@ class ConstExp(expType):
             val = int(self.val, 2)
             return Array(idx_typ, val)
 
+    def preExp(self, sort_map, stm_map):
+        return self
+
 
 class VarExp(expType):
     def __init__(self, sortId, id, name=None):
@@ -382,15 +385,19 @@ class VarExp(expType):
             self.name = name
 
     def __str__(self):
-        return " %s   %s " % (str(self.sortId), str(self.id))
+        return self.name
 
     def __repr__(self):
-        return "Var %s   %s" % (repr(self.sortId), repr(self.id))
+        return self.name
 
     def toPySmt(self, sort_map):
         typename = sort_map[self.sortId].toPySmt(sort_map)
         name = self.name
         return Symbol(name, typename)
+
+    def preExp(self, sort_map, stm_map):
+        print("执行替换：  替换  node%d   为   %s" % (self.id,str(stm_map[self.id])))
+        return stm_map[self.id]
 
 
 class InputExp(expType):
@@ -403,10 +410,10 @@ class InputExp(expType):
             self.name = name
 
     def __str__(self):
-        return "%s   %s " % (str(self.sortId), str(self.id))
+        return self.name
 
     def __repr__(self):
-        return "Input %s   %s" % (repr(self.sortId), repr(self.id))
+        return self.name
 
     def __eq__(self, other):
         return isinstance(other, InputExp) and self.sortId == other.sortId and self.id == other.id
@@ -415,6 +422,10 @@ class InputExp(expType):
         typename = sort_map[self.sortId].toPySmt(sort_map)
         name = self.name
         return Symbol(name, typename)
+
+    def preExp(self, sort_map, stm_map):
+        # input不动
+        return self
 
 
 class UifExp(expType):
@@ -425,10 +436,10 @@ class UifExp(expType):
         self.id = id
 
     def __str__(self):
-        return "%s( %s ) :%s   " % (self.op, self.es, str(self.sortId))
+        return " %s(%s) " % (self.op, ', '.join(str(e) for e in self.es))
 
     def __repr__(self):
-        return "UifExp %s( %s): %s  @Node %s" % (self.op, self.es, str(self.sortId), str(self.id))
+        return " %s(%s) " % (self.op, ', '.join(str(e) for e in self.es))
 
     def __eq__(self, other):
         return isinstance(other,
@@ -457,18 +468,24 @@ class UifExp(expType):
         elif self.op == "concat":
             left = self.es[0]
             right = self.es[1]
-            return BVConcat(left.toPySmt(sort_map),right.toPySmt(sort_map))
+            return BVConcat(left.toPySmt(sort_map), right.toPySmt(sort_map))
         elif self.op == "redor":
-            # 没搞懂，BVRor是reduce吗？
+            # BVRor是reduce吗？
             sort = sort_map[self.sortId]
             subExp = self.es[0]
-            return BVRor(subExp.toPySmt(sort_map),sort.len)
+            return BVRor(subExp.toPySmt(sort_map), sort.len)
         elif self.op == "ult":
             left = self.es[0]
             right = self.es[1]
             return BVULT(left.toPySmt(sort_map), right.toPySmt(sort_map))
         else:
             assert "not support"
+
+    def preExp(self, sort_map, stm_map):
+        es = []
+        for e in self.es:
+            es.append(e.preExp(sort_map, stm_map))
+        return UifExp(self.sortId, self.op, es, self.id)
 
 
 class UifIndExp(expType):
@@ -480,20 +497,31 @@ class UifIndExp(expType):
         self.opdNats = opNats
 
     def __str__(self):
-        return "%s( %s,%s ) :%s   " % (self.op, self.es, self.opNats, str(self.sortId))
+        return "%s(%s,%s)" % (self.op, str(self.es), str(self.opdNats))
 
     def __repr__(self):
-        return "UifIdExp %s( %s,%s ) :%s   " % (self.op, self.es, self.opNats, str(self.sortId))
+        return "%s(%s,%s)" % (self.op, str(self.es), str(self.opdNats))
 
     def __eq__(self, other):
         return isinstance(other,
                           UifIndExp) and self.sortId == other.sortId and self.id == other.id and self.es == other.es and self.op == other.op and self.opdNats == other.opNats
 
     def toPySmt(self, sort_map):
-        if self.op == "uext":
-            left = self.es[0]
-            right = self.es[1]
-            return BVSExt(left.toPySmt(sort_map),right)
+        if self.op == "sext":
+            left = self.es
+            return BVSExt(left.toPySmt(sort_map), self.opdNats[0])
+        elif self.op == "uext":
+            left = self.es
+            return BVZExt(left.toPySmt(sort_map), self.opdNats[0])
+        elif self.op == "slice":
+            left = self.es
+            return BVExtract(left.toPySmt(sort_map), self.opdNats[0], self.opdNats[1])
+        else:
+            assert "known"
+
+    def preExp(self, sort_map, stm_map):
+        es = self.es.preExp(sort_map, stm_map)
+        return UifExp(self.sortId, es, self.id, self.opdNats)
 
 
 class ReadExp(expType):
@@ -504,18 +532,22 @@ class ReadExp(expType):
         self.id = id
 
     def __str__(self):
-        return "%s[%s]  :%s   " % (self.mem, self.adr, str(self.sortId))
+        return "%s[%s]" % (str(self.mem), str(self.adr))
 
     def __repr__(self):
-        return "mem %s[ %s]: %s  @Node %s" % (self.mem, self.adr, str(self.sortId), str(self.id))
+        return "%s[%s]" % (str(self.mem), str(self.adr))
 
     def __eq__(self, other):
         return isinstance(other,
                           ReadExp) and self.sortId == other.sortId and self.mem == other.mem and self.id == other.id and self.adr == other.adr
 
     def toPySmt(self, sort_map):
-        # read是只对array操作吗？
-        return Select(self.mem.toPySmt(sort_map),self.adr.toPySmt(sort_map))
+        return Select(self.mem.toPySmt(sort_map), self.adr.toPySmt(sort_map))
+
+    def preExp(self, sort_map, stm_map):
+        mem = self.mem.preExp(sort_map, stm_map)
+        adr = self.adr.preExp(sort_map, stm_map)
+        return ReadExp(self.sortId, mem, adr, self.id)
 
 
 class IteExp(expType):
@@ -527,10 +559,10 @@ class IteExp(expType):
         self.id = id
 
     def __str__(self):
-        return "?%s:%s,%s  :%s   " % (self.b, self.e1, self.e2, str(self.sortId))
+        return "(if %s then %s else %s)" % (str(self.b), str(self.e1), str(self.e2))
 
     def __repr__(self):
-        return "IteExp ?%s:%s,%s  :%ss" % (self.b, self.e1, self.e2, str(self.sortId))
+        return "(?%s:%s,%s)" % (str(self.b), str(self.e1), str(self.e2))
 
     def __eq__(self, other):
         return isinstance(other,
@@ -538,13 +570,16 @@ class IteExp(expType):
 
     def toPySmt(self, sort_map):
         sort_of_b = sort_map[self.b.sortId]
-        print(self.b.toPySmt(sort_map))
-        print(self.e1)
         if self.b.toPySmt(sort_map).get_type() is BOOL:
             return Ite(self.b.toPySmt(sort_map), self.e1.toPySmt(sort_map), self.e2.toPySmt(sort_map))
         else:
-            return Ite(Equals(self.b.toPySmt(sort_map),BV(1,1)), self.e1.toPySmt(sort_map), self.e2.toPySmt(sort_map))
+            return Ite(Equals(self.b.toPySmt(sort_map), BV(1, 1)), self.e1.toPySmt(sort_map), self.e2.toPySmt(sort_map))
 
+    def preExp(self, sort_map, stm_map):
+        b = self.b.preExp(sort_map, stm_map)
+        e1 = self.e1.preExp(sort_map, stm_map)
+        e2 = self.e2.preExp(sort_map, stm_map)
+        return IteExp(self.sortId, b, e1, e2, self.id)
 
 
 class StoreExp(expType):
@@ -556,17 +591,24 @@ class StoreExp(expType):
         self.id = id
 
     def __str__(self):
-        return "%s[%s]<=%s  :%s   " % (self.mem, self.adre, self.content, str(self.sortId))
+        return "(%s[%s]<=%s)" % (self.mem, self.adre, self.content)
 
     def __repr__(self):
-        return "%s[%s]<=%s  :%s" % (self.mem, self.adre, self.content, str(self.sortId))
+        return "(%s[%s]<=%s)" % (self.mem, self.adre, self.content)
 
     def __eq__(self, other):
         return isinstance(other,
                           StoreExp) and self.sortId == other.sortId and self.mem == other.mem and self.adre == other.adre and self.content == other.content and self.id == other.id
 
-    def toPySmt(self,sort_map):
-        return Store(self.mem.toPySmt(sort_map),self.adre.toPySmt(sort_map),self.content.toPySmt(sort_map))
+    def toPySmt(self, sort_map):
+        return Store(self.mem.toPySmt(sort_map), self.adre.toPySmt(sort_map), self.content.toPySmt(sort_map))
+
+    def preExp(self, sort_map, stm_map):
+        mem = self.mem.preExp(sort_map, stm_map)
+        adre = self.adre.preExp(sort_map, stm_map)
+        content = self.content.preExp(sort_map, stm_map)
+        return StoreExp(self.sortId, mem, adre, content, self.id)
+
 
 # 存储init信息
 class Init():
@@ -794,5 +836,3 @@ class Btor2():
             props.append(prop.toPySmt(self.sort_map))
 
         return TransitionSystem(vars, And(inits), And(nexts)), props
-
-        print(1)

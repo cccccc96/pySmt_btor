@@ -213,21 +213,3 @@ def parse_file(filename):
         return btor2_parser.parse(f.read())
 
 
-if __name__ == "__main__":
-    x = (ArrayType(BVType(1),BVType(1)))
-    in_wr = Symbol("in_wr",BVType(1))
-    in_wr_addr = Symbol("in_wr_addr",BVType(1))
-    node45 = Symbol("node45",BVType(1))
-    val = BV(1,1)
-
-    comp = BVComp(in_wr_addr,node45)
-    a = BVAnd(in_wr,comp)
-    b = BVULT(node45,val)
-    d = a.get_type()
-    c = b.get_type()
-    f = BVAnd(a,b)
-    Symbol("x",ArrayType(BVType(1),BVType(1)))
-    prot = parse_file("case/memory.btor2")
-    # prot.display(nid=121)
-    x = prot.toTS_PySmtFormat()
-    # prot.display(nid=122, pre=False)
