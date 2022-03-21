@@ -1,8 +1,9 @@
 
 
-from pysmt.shortcuts import Symbol, Not, And, Ite, BV,BVNot,BVAnd,BVComp,Equals,Array,ArrayType,get_model
-from pysmt.shortcuts import is_sat, is_unsat, Solver, TRUE, FALSE
+from pysmt.shortcuts import *
 from pysmt.typing import BOOL, BVType
+from pysmt.type_checker import SimpleTypeChecker
+
 
 import btor2parser
 
@@ -52,7 +53,8 @@ class BMC(object):
         res = []
         for i in range(k+1):
             subs_i = self.get_subs(i)
-            res.append(Not(prop.substitute(subs_i)))
+            res.append(BVNot(prop.substitute(subs_i)))
+        And(res)
         return And(res)
 
     def get_bmc(self, prop, k):
@@ -77,12 +79,26 @@ class Test():
         # x=BV(2,2)
         # y = ArrayType(BVType(2),BVType(2))
         # x=Array(BVType(2),BV(2,4))
-        x= Symbol("name1",BVType(1))
-        y = Symbol("name2", ArrayType(BVType(1),BVType(2)))
-        prot =btor2parser.parse_file("case/counter.btor2")
+        # a = ArrayType(BVType(1),BVType(1))
+        # a = ArrayType(BOOL,BOOL)
+        # x2 = Symbol("name1", BVType(4))
+        # x3 = BV(0,4)
+        # Not(EqualsOrIff(x2,x3))
+        #
+        # x1 = Symbol("name25",BVType(1))
+        # x2 = Symbol("name3", BVType(1))
+        # c = x1.get_type()
+        # BVAnd(BVAnd(x1,x2),x1)
+        #
+        # t = Equals(x1 , x2)
+        # x = t.get_type()
+        # if x is BOOL:
+        #     print(2)
+        # y = Symbol("name2", ArrayType(BVType(1),BVType(2)))
+        prot =btor2parser.parse_file("case/memory.btor2")
         transitionSystem,prop = prot.toTS_PySmtFormat()
-        bmc = BMC(transitionSystem)
-        bmc.run_bmc(prop[1],2)
+        # bmc = BMC(transitionSystem)
+        # bmc.run_bmc(prop[1],2)
 
 
 
