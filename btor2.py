@@ -471,13 +471,15 @@ class UifExp(expType):
             return BVConcat(left.toPySmt(sort_map), right.toPySmt(sort_map))
         elif self.op == "redor":
             # BVRor是reduce吗？
-            sort = sort_map[self.sortId]
             subExp = self.es[0]
-            return BVRor(subExp.toPySmt(sort_map), sort.len)
+            len = sort_map[subExp.sortId].bv_or_arr.len
+            test = BVRor(subExp.toPySmt(sort_map), len)
+            x = Ite(BVRor(subExp.toPySmt(sort_map), len).Equals(BV(1,len)),BV(1,1),BV(0,1))
+            return x
         elif self.op == "ult":
             left = self.es[0]
             right = self.es[1]
-            return BVULT(left.toPySmt(sort_map), right.toPySmt(sort_map))
+            return Ite(BVULT(left.toPySmt(sort_map), right.toPySmt(sort_map)),BV(1,1),BV(0,1))
         else:
             assert "not support"
 
@@ -706,8 +708,11 @@ class Btor2():
             if isinstance(line[0], InputKind):
                 if len(line) > 1:
                     line[0].name = line[1]
+            if isinstance(line[0], PropertyKind) and line[0].kind == "output":
+                self.node_map[line[0].nid].name = line[1]
             if isinstance(line[0], nodeType):
                 self.node_map[line[0].nodeID.id] = line[0]
+
 
         for node in self.node_map.values():
 

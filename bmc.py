@@ -5,7 +5,7 @@ from pysmt.typing import BOOL, BVType
 from pysmt.type_checker import SimpleTypeChecker
 
 
-import btor2parser
+from btor2parser import *
 
 
 def next_var(v):
@@ -31,6 +31,7 @@ class BMC(object):
 
     def __init__(self, system):
         self.system = system
+        self.solver=Solver()
 
     def get_subs(self, i):
         # 获取时刻i和时刻i+1的变量，以map的形式存储
@@ -46,6 +47,7 @@ class BMC(object):
         for i in range(k+1):
             subs_i = self.get_subs(i)
             res.append(self.system.trans.substitute(subs_i))
+        x = And(res)
         return And(res)
 
     def get_notProps(self,prop, k):
@@ -53,8 +55,7 @@ class BMC(object):
         res = []
         for i in range(k+1):
             subs_i = self.get_subs(i)
-            res.append(BVNot(prop.substitute(subs_i)))
-        And(res)
+            res.append(Ite(BVNot(prop.substitute(subs_i)).Equals(BV(1,1)),TRUE(),FALSE()))
         return And(res)
 
     def get_bmc(self, prop, k):
@@ -71,4 +72,5 @@ class BMC(object):
             print("bug find")
         if is_unsat(f):
             print("safe ")
+
 
