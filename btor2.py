@@ -36,7 +36,7 @@ class bvType(BtorType):
 
 
 class ArrayType(BtorType):
-    def __init__(self, ele_typ, idx_typ):
+    def __init__(self,idx_typ, ele_typ):
         self.idx_typ = idx_typ
         self.ele_typ = ele_typ
 
@@ -196,9 +196,9 @@ class SortKind(nodeType):
         if isinstance(self.bv_or_arr, bvType):
             return BVType(self.bv_or_arr.len)
         elif isinstance(self.bv_or_arr, ArrayType):
-            ele_typ = BVType(self.bv_or_arr.ele_typ)
-            idx_typ = BVType(self.bv_or_arr.idx_typ)
-            return shortcuts.ArrayType(ele_typ, idx_typ)
+            ele_typ = sort_map[self.bv_or_arr.ele_typ].toPySmt(sort_map)
+            idx_typ = sort_map[self.bv_or_arr.idx_typ].toPySmt(sort_map)
+            return shortcuts.ArrayType(idx_typ,ele_typ)
 
 
 class InputKind(nodeType):
@@ -385,6 +385,7 @@ class VarExp(expType):
             self.name = name
 
     def __str__(self):
+        
         return self.name
 
     def __repr__(self):
@@ -410,6 +411,7 @@ class InputExp(expType):
             self.name = name
 
     def __str__(self):
+        
         return self.name
 
     def __repr__(self):
@@ -436,6 +438,8 @@ class UifExp(expType):
         self.id = id
 
     def __str__(self):
+        # 
+        
         return " %s(%s) " % (self.op, ', '.join(str(e) for e in self.es))
 
     def __repr__(self):
@@ -499,6 +503,7 @@ class UifIndExp(expType):
         self.opdNats = opNats
 
     def __str__(self):
+        
         return "%s(%s,%s)" % (self.op, str(self.es), str(self.opdNats))
 
     def __repr__(self):
@@ -517,7 +522,8 @@ class UifIndExp(expType):
             return BVZExt(left.toPySmt(sort_map), self.opdNats[0])
         elif self.op == "slice":
             left = self.es
-            return BVExtract(left.toPySmt(sort_map), self.opdNats[0], self.opdNats[1])
+            s = left.toPySmt(sort_map),
+            return BVExtract(left.toPySmt(sort_map), self.opdNats[1], self.opdNats[0])
         else:
             assert "known"
 
@@ -534,6 +540,7 @@ class ReadExp(expType):
         self.id = id
 
     def __str__(self):
+        
         return "%s[%s]" % (str(self.mem), str(self.adr))
 
     def __repr__(self):
@@ -544,6 +551,8 @@ class ReadExp(expType):
                           ReadExp) and self.sortId == other.sortId and self.mem == other.mem and self.id == other.id and self.adr == other.adr
 
     def toPySmt(self, sort_map):
+        x =self.mem.toPySmt(sort_map)
+        y=self.adr.toPySmt(sort_map)
         return Select(self.mem.toPySmt(sort_map), self.adr.toPySmt(sort_map))
 
     def preExp(self, sort_map, stm_map):
@@ -561,6 +570,7 @@ class IteExp(expType):
         self.id = id
 
     def __str__(self):
+        
         return "(if %s then %s else %s)" % (str(self.b), str(self.e1), str(self.e2))
 
     def __repr__(self):
@@ -593,10 +603,11 @@ class StoreExp(expType):
         self.id = id
 
     def __str__(self):
-        return "(%s[%s]<=%s)" % (self.mem, self.adre, self.content)
+        
+        return "(%s[%s]<=%s)" % (str(self.mem), str(self.adre), str(self.content))
 
     def __repr__(self):
-        return "(%s[%s]<=%s)" % (self.mem, self.adre, self.content)
+        return "(%s[%s]<=%s)" % (str(self.mem), str(self.adre), str(self.content))
 
     def __eq__(self, other):
         return isinstance(other,
@@ -636,6 +647,9 @@ class Next():
         self.pre = pre
 
     def __str__(self):
+        
+        print(str(self.cur))
+        print(str(self.cur) + " \n"+str(self.pre))
         return "(next %s : %s)" % (str(self.pre), str(self.cur))
         # return str(self.pre)
 
@@ -715,7 +729,6 @@ class Btor2():
 
 
         for node in self.node_map.values():
-
             assert (isinstance(node, nodeType))
 
             # sortkind bv/arr
@@ -763,12 +776,14 @@ class Btor2():
             elif isinstance(node, OpKind):
                 # ite
                 if node.opT == "ite":
+                    test = node.nodeID.id
                     opdNids = node.opdNids
                     sortId = node.sid
                     b = self.exp_map[opdNids[0]]
                     e1 = self.exp_map[opdNids[1]]
                     e2 = self.exp_map[opdNids[2]]
                     exp = IteExp(sortId, b, e1, e2, node.nodeID.id)
+                    # print(1)
                 # read
                 elif node.opT == "read":
                     opdNids = node.opdNids
@@ -784,6 +799,7 @@ class Btor2():
                     content = self.exp_map[opdNids[2]]
                     exp = StoreExp(sortId, mem, adr, content, node.nodeID.id)
                 else:
+
                     sortId = node.sid
                     opdNids = node.opdNids
                     es = [self.exp_map[opdNids[0]]]
@@ -827,6 +843,8 @@ class Btor2():
                 print(str(node) + " : unkown!")
 
     def toTS_PySmtFormat(self):
+
+
         vars = []
         inits = []
         nexts = []
