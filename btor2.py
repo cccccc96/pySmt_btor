@@ -17,11 +17,11 @@ from PySmtUtil import next_var, at_time, TransitionSystem
 #         return res
 
 
-class BtorType:
+class SortType:
     pass
 
 
-class bvType(BtorType):
+class bvType(SortType):
     def __init__(self, len):
         self.len = len
 
@@ -35,7 +35,7 @@ class bvType(BtorType):
         return isinstance(other, bvType) and self.len == other.len
 
 
-class ArrayType(BtorType):
+class ArrayType(SortType):
     def __init__(self,idx_typ, ele_typ):
         self.idx_typ = idx_typ
         self.ele_typ = ele_typ
@@ -95,6 +95,7 @@ class input1Type(inputType):
     def __init__(self, inpEnum, sortId):
         self.inpEnum = inpEnum
         self.sortId = sortId
+        self.name = None
 
     def __str__(self):
         return "input %s %s" % (self.inpEnum, str(self.sortId))
@@ -104,6 +105,7 @@ class input1Type(inputType):
 
     def __eq__(self, other):
         return isinstance(other, input1Type) and self.sortId == other.sortId
+
 
 
 class constType(inputType):
@@ -179,8 +181,8 @@ class nodeType:
 
 
 class SortKind(nodeType):
-    def __init__(self, sort0, bv_or_arr: BtorType):
-        self.nodeID = nodeId(sort0)
+    def __init__(self, nid, bv_or_arr: SortType):
+        self.nodeID = nodeId(nid)
         self.bv_or_arr = bv_or_arr
 
     def __str__(self):
@@ -192,13 +194,17 @@ class SortKind(nodeType):
     def __eq__(self, other):
         return isinstance(other, SortKind) and self.nodeID == other.nodeID
 
-    def toPySmt(self, sort_map):
+    def toPySmt(self, exp_map, sort_map):
         if isinstance(self.bv_or_arr, bvType):
             return BVType(self.bv_or_arr.len)
         elif isinstance(self.bv_or_arr, ArrayType):
-            ele_typ = sort_map[self.bv_or_arr.ele_typ].toPySmt(sort_map)
-            idx_typ = sort_map[self.bv_or_arr.idx_typ].toPySmt(sort_map)
+            ele_typ = sort_map[self.bv_or_arr.ele_typ].toPySmt(exp_map, sort_map)
+            idx_typ = sort_map[self.bv_or_arr.idx_typ].toPySmt(exp_map, sort_map)
             return shortcuts.ArrayType(idx_typ,ele_typ)
+
+    def node2Exp(self, node_exp_map):
+        return node_exp_map
+
 
 
 class InputKind(nodeType):
@@ -216,11 +222,30 @@ class InputKind(nodeType):
     def __eq__(self, other):
         return isinstance(other, InputKind) and self.nodeID == other.nodeID and self.inpT == other.inpT
 
+    def node2Exp(self, node_exp_map):
+        if isinstance(self.inpT, input1Type):
+            sortId = self.inpT.sortId
+            node_exp_map[self.nodeID.id] = InputExp(sortId, self.nodeID.id, self.name)
+        elif isinstance(self.inpT, constType):
+            sortId = self.inpT.sortId
+            val = self.inpT.val
+            node_exp_map[self.nodeID.id] = ConstExp(sortId, val, self.nodeID.id)
+        elif isinstance(self.inpT, constdType):
+            sortId = self.inpT.sortId
+            val = self.inpT.val
+            node_exp_map[self.nodeID.id] = ConstExp(sortId, val, self.nodeID.id)
+        elif isinstance(self.inpT, consthType):
+            sortId = self.inpT.sortId
+            val = self.inpT.val
+            node_exp_map[self.nodeID.id] = ConstExp(sortId, val, self.nodeID.id)
+        return node_exp_map
 
 class StateKind(nodeType):
-    def __init__(self, nid, state):
-        self.sid = state
+    def __init__(self, nid, sid):
         self.nodeID = nodeId(nid)
+        self.sid = sid
+        self.name = None
+
 
     def __str__(self):
         return "State %s @%s" % (str(self.sid), str(self.nodeID))
@@ -231,6 +256,10 @@ class StateKind(nodeType):
     def __eq__(self, other):
         return isinstance(other, StateKind) and self.nodeID == other.nodeID and self.sid == other.sid
 
+    def node2Exp(self, node_exp_map):
+        sortId = self.sid
+        node_exp_map[self.nodeID.id] = VarExp(sortId, self.nodeID.id, self.name)
+        return node_exp_map
 
 class IndOpKind(nodeType):
     def __init__(self, nid, opT, sid, opdNid, ns1, ns2):
@@ -251,6 +280,13 @@ class IndOpKind(nodeType):
         return isinstance(other,
                           IndOpKind) and self.nodeID == other.nodeID and self.sid == other.sid and self.opT == other.opT and self.ns1 == other.ns1 and self.opdNid == other.opdNid
 
+    def node2Exp(self, node_exp_map):
+        sortId = self.sid
+        op = self.opT
+        es = node_exp_map[self.opdNid]
+        vals = [self.ns1, self.ns2]
+        node_exp_map[self.nodeID.id] = UifIndExp(sortId, op, es, self.nodeID.id, vals)
+        return node_exp_map
 
 class OpKind(nodeType):
     def __init__(self, nid, opT, sid, opdNids):
@@ -269,6 +305,41 @@ class OpKind(nodeType):
         return isinstance(other,
                           OpKind) and self.nodeID == other.nodeID and self.sid == other.sid and self.opT == other.opT and self.opdNids == other.opdNids
 
+    def node2Exp(self, node_exp_map):
+        if self.opT == "ite":
+            test = self.nodeID.id
+            opdNids = self.opdNids
+            sortId = self.sid
+            b = node_exp_map[opdNids[0]]
+            e1 = node_exp_map[opdNids[1]]
+            e2 = node_exp_map[opdNids[2]]
+            node_exp_map[self.nodeID.id] = IteExp(sortId, b, e1, e2, self.nodeID.id)
+            # print(1)
+        # read
+        elif self.opT == "read":
+            opdNids = self.opdNids
+            sortId = self.sid
+            mem = node_exp_map[opdNids[0]]
+            adr = node_exp_map[opdNids[1]]
+            node_exp_map[self.nodeID.id] = ReadExp(sortId, mem, adr, self.nodeID.id)
+        elif self.opT == "write":
+            opdNids = self.opdNids
+            sortId = self.sid
+            mem = node_exp_map[opdNids[0]]
+            adr = node_exp_map[opdNids[1]]
+            content = node_exp_map[opdNids[2]]
+            node_exp_map[self.nodeID.id] = StoreExp(sortId, mem, adr, content, self.nodeID.id)
+        else:
+
+            sortId = self.sid
+            opdNids = self.opdNids
+            es = [node_exp_map[opdNids[0]]]
+            if opdNids[1] is not None:
+                es.append(node_exp_map[opdNids[1]])
+            if opdNids[2] is not None:
+                es.append(node_exp_map[opdNids[2]])
+            node_exp_map[self.nodeID.id] = UifExp(sortId, self.opT, es, self.nodeID.id)
+        return node_exp_map
 
 class NextKind(nodeType):
     def __init__(self, line, sid, nid, prenid):
@@ -361,7 +432,7 @@ class ConstExp(expType):
         return isinstance(other,
                           ConstExp) and self.sortId == other.sortId and self.id == other.id and self.val == other.val
 
-    def toPySmt(self, sort_map):
+    def toPySmt(self, exp_map, sort_map):
         sort = sort_map[self.sortId].bv_or_arr
         if isinstance(sort, bvType):
             val = int(self.val, 2)
@@ -374,6 +445,8 @@ class ConstExp(expType):
     def preExp(self, sort_map, stm_map):
         return self
 
+    def size(self):
+        return 1
 
 class VarExp(expType):
     def __init__(self, sortId, id, name=None):
@@ -391,8 +464,8 @@ class VarExp(expType):
     def __repr__(self):
         return self.name
 
-    def toPySmt(self, sort_map):
-        typename = sort_map[self.sortId].toPySmt(sort_map)
+    def toPySmt(self, exp_map, sort_map):
+        typename = sort_map[self.sortId].toPySmt(exp_map, sort_map)
         name = self.name
         return Symbol(name, typename)
 
@@ -400,6 +473,8 @@ class VarExp(expType):
         print("执行替换：  替换  node%d   为   %s" % (self.id,str(stm_map[self.id])))
         return stm_map[self.id]
 
+    def size(self):
+        return 1
 
 class InputExp(expType):
     def __init__(self, sortId, id, name=None):
@@ -420,8 +495,8 @@ class InputExp(expType):
     def __eq__(self, other):
         return isinstance(other, InputExp) and self.sortId == other.sortId and self.id == other.id
 
-    def toPySmt(self, sort_map):
-        typename = sort_map[self.sortId].toPySmt(sort_map)
+    def toPySmt(self, exp_map, sort_map):
+        typename = sort_map[self.sortId].toPySmt(exp_map, sort_map)
         name = self.name
         return Symbol(name, typename)
 
@@ -429,6 +504,8 @@ class InputExp(expType):
         # input不动
         return self
 
+    def size(self):
+        return 1
 
 class UifExp(expType):
     def __init__(self, sortId, op, es, id):
@@ -449,41 +526,41 @@ class UifExp(expType):
         return isinstance(other,
                           UifExp) and self.sortId == other.sortId and self.id == other.id and self.es == other.es and self.op == other.op
 
-    def toPySmt(self, sort_map):
+    def toPySmt(self, exp_map, sort_map):
         if self.op == "eq":
             left = self.es[0]
             right = self.es[1]
-            return BVComp(left.toPySmt(sort_map), right.toPySmt(sort_map))
+            return BVComp(left.toPySmt(exp_map, sort_map), right.toPySmt(exp_map, sort_map))
         elif self.op == "not":
             subExp = self.es[0]
-            return BVNot(subExp.toPySmt(sort_map))
+            return BVNot(subExp.toPySmt(exp_map, sort_map))
         elif self.op == "and":
             left = self.es[0]
             right = self.es[1]
-            return BVAnd(left.toPySmt(sort_map), right.toPySmt(sort_map))
+            return BVAnd(left.toPySmt(exp_map, sort_map), right.toPySmt(exp_map, sort_map))
         elif self.op == "or":
             left = self.es[0]
             right = self.es[1]
-            return BVOr(left.toPySmt(sort_map), right.toPySmt(sort_map))
+            return BVOr(left.toPySmt(exp_map, sort_map), right.toPySmt(exp_map, sort_map))
         elif self.op == "add":
             left = self.es[0]
             right = self.es[1]
-            return left.toPySmt(sort_map) + right.toPySmt(sort_map)
+            return left.toPySmt(exp_map, sort_map) + right.toPySmt(exp_map, sort_map)
         elif self.op == "concat":
             left = self.es[0]
             right = self.es[1]
-            return BVConcat(left.toPySmt(sort_map), right.toPySmt(sort_map))
+            return BVConcat(left.toPySmt(exp_map, sort_map), right.toPySmt(exp_map, sort_map))
         elif self.op == "redor":
             # BVRor是reduce吗？
             subExp = self.es[0]
             len = sort_map[subExp.sortId].bv_or_arr.len
-            test = BVRor(subExp.toPySmt(sort_map), len)
-            x = Ite(BVRor(subExp.toPySmt(sort_map), len).Equals(BV(1,len)),BV(1,1),BV(0,1))
+            test = BVRor(subExp.toPySmt(exp_map, sort_map), len)
+            x = Ite(BVRor(subExp.toPySmt(exp_map, sort_map), len).Equals(BV(1,len)),BV(1,1),BV(0,1))
             return x
         elif self.op == "ult":
             left = self.es[0]
             right = self.es[1]
-            return Ite(BVULT(left.toPySmt(sort_map), right.toPySmt(sort_map)),BV(1,1),BV(0,1))
+            return Ite(BVULT(left.toPySmt(exp_map, sort_map), right.toPySmt(exp_map, sort_map)),BV(1,1),BV(0,1))
         else:
             assert "not support"
 
@@ -492,6 +569,12 @@ class UifExp(expType):
         for e in self.es:
             es.append(e.preExp(sort_map, stm_map))
         return UifExp(self.sortId, self.op, es, self.id)
+
+    def size(self):
+        res = 1
+        for e in self.es:
+            res += e.size()
+        return res
 
 
 class UifIndExp(expType):
@@ -513,17 +596,17 @@ class UifIndExp(expType):
         return isinstance(other,
                           UifIndExp) and self.sortId == other.sortId and self.id == other.id and self.es == other.es and self.op == other.op and self.opdNats == other.opNats
 
-    def toPySmt(self, sort_map):
+    def toPySmt(self, exp_map, sort_map):
         if self.op == "sext":
             left = self.es
-            return BVSExt(left.toPySmt(sort_map), self.opdNats[0])
+            return BVSExt(left.toPySmt(exp_map, sort_map), self.opdNats[0])
         elif self.op == "uext":
             left = self.es
-            return BVZExt(left.toPySmt(sort_map), self.opdNats[0])
+            return BVZExt(left.toPySmt(exp_map, sort_map), self.opdNats[0])
         elif self.op == "slice":
             left = self.es
-            s = left.toPySmt(sort_map),
-            return BVExtract(left.toPySmt(sort_map), self.opdNats[1], self.opdNats[0])
+            s = left.toPySmt(exp_map, sort_map),
+            return BVExtract(left.toPySmt(exp_map, sort_map), self.opdNats[1], self.opdNats[0])
         else:
             assert "known"
 
@@ -531,6 +614,10 @@ class UifIndExp(expType):
         es = self.es.preExp(sort_map, stm_map)
         return UifExp(self.sortId, es, self.id, self.opdNats)
 
+    def size(self):
+        res = 1
+        res += self.es.size()
+        return res
 
 class ReadExp(expType):
     def __init__(self, sortId, mem, adr, id):
@@ -550,15 +637,20 @@ class ReadExp(expType):
         return isinstance(other,
                           ReadExp) and self.sortId == other.sortId and self.mem == other.mem and self.id == other.id and self.adr == other.adr
 
-    def toPySmt(self, sort_map):
-        x =self.mem.toPySmt(sort_map)
-        y=self.adr.toPySmt(sort_map)
-        return Select(self.mem.toPySmt(sort_map), self.adr.toPySmt(sort_map))
+    def toPySmt(self, exp_map, sort_map):
+        x =self.mem.toPySmt(exp_map, sort_map)
+        y=self.adr.toPySmt(exp_map, sort_map)
+        return Select(self.mem.toPySmt(exp_map, sort_map), self.adr.toPySmt(exp_map, sort_map))
 
     def preExp(self, sort_map, stm_map):
         mem = self.mem.preExp(sort_map, stm_map)
         adr = self.adr.preExp(sort_map, stm_map)
         return ReadExp(self.sortId, mem, adr, self.id)
+
+    def size(self):
+        res = 1
+        res += self.mem.size() + self.adr.size()
+        return res
 
 
 class IteExp(expType):
@@ -580,12 +672,11 @@ class IteExp(expType):
         return isinstance(other,
                           IteExp) and self.sortId == other.sortId and self.b == other.b and self.e1 == other.e1 and self.e2 == other.e2 and self.id == other.id
 
-    def toPySmt(self, sort_map):
-        sort_of_b = sort_map[self.b.sortId]
-        if self.b.toPySmt(sort_map).get_type() is BOOL:
-            return Ite(self.b.toPySmt(sort_map), self.e1.toPySmt(sort_map), self.e2.toPySmt(sort_map))
+    def toPySmt(self, exp_map, sort_map):
+        if self.b.toPySmt(exp_map, sort_map).get_type() is BOOL:
+            return Ite(self.b.toPySmt(exp_map, sort_map), self.e1.toPySmt(exp_map, sort_map), self.e2.toPySmt(exp_map, sort_map))
         else:
-            return Ite(Equals(self.b.toPySmt(sort_map), BV(1, 1)), self.e1.toPySmt(sort_map), self.e2.toPySmt(sort_map))
+            return Ite(Equals(self.b.toPySmt(exp_map, sort_map), BV(1, 1)), self.e1.toPySmt(exp_map, sort_map), self.e2.toPySmt(exp_map, sort_map))
 
     def preExp(self, sort_map, stm_map):
         b = self.b.preExp(sort_map, stm_map)
@@ -593,6 +684,10 @@ class IteExp(expType):
         e2 = self.e2.preExp(sort_map, stm_map)
         return IteExp(self.sortId, b, e1, e2, self.id)
 
+    def size(self):
+        res = 1
+        res += self.b.size() + self.e1.size() +self.e2.size()
+        return res
 
 class StoreExp(expType):
     def __init__(self, sortId, mem, adre, content, id):
@@ -613,8 +708,8 @@ class StoreExp(expType):
         return isinstance(other,
                           StoreExp) and self.sortId == other.sortId and self.mem == other.mem and self.adre == other.adre and self.content == other.content and self.id == other.id
 
-    def toPySmt(self, sort_map):
-        return Store(self.mem.toPySmt(sort_map), self.adre.toPySmt(sort_map), self.content.toPySmt(sort_map))
+    def toPySmt(self, exp_map, sort_map):
+        return Store(self.mem.toPySmt(exp_map, sort_map), self.adre.toPySmt(exp_map, sort_map), self.content.toPySmt(exp_map, sort_map))
 
     def preExp(self, sort_map, stm_map):
         mem = self.mem.preExp(sort_map, stm_map)
@@ -622,6 +717,10 @@ class StoreExp(expType):
         content = self.content.preExp(sort_map, stm_map)
         return StoreExp(self.sortId, mem, adre, content, self.id)
 
+    def size(self):
+        res = 1
+        res += self.mem.size() + self.adre.size() +self.content.size()
+        return res
 
 # 存储init信息
 class Init():
@@ -634,27 +733,41 @@ class Init():
     def __str__(self):
         return "(initial:%s is %s)" % (str(self.toInit), str(self.initVal))
 
-    def toPySmt(self, sort_map):
-        return self.toInit.toPySmt(sort_map).Equals(self.initVal.toPySmt(sort_map))
+    def toPySmt(self, exp_map, sort_map):
+        return self.toInit.toPySmt(exp_map, sort_map).Equals(self.initVal.toPySmt(exp_map, sort_map))
 
 
-# 存储next信息
-class Next():
-    def __init__(self, sortId, cur: expType, pre: expType, id):
-        self.id = id
-        self.sortId = sortId
-        self.cur = cur
-        self.pre = pre
+# # 存储next信息
+# class Next():
+#     def __init__(self, sortId, cur: expType, pre: expType, id):
+#         self.id = id
+#         self.sortId = sortId
+#         self.cur = cur
+#         self.pre = pre
+#
+#     def __str__(self):
+#         print(str(self.cur))
+#         print(str(self.cur) + " \n"+str(self.pre))
+#         return "(next %s : %s)" % (str(self.pre), str(self.cur))
+#         # return str(self.pre)
+#
+#     def toPySmt(self, exp_map, sort_map):
+#         return next_var(self.cur.toPySmt(exp_map, sort_map)).Equals(self.pre.toPySmt(exp_map, sort_map))
 
+'''
+老师要求的Stament：
+    nid:=exp
+'''
+class Statement():
+    def __init__(self,nid:INT, exp:expType):
+        self.nid=nid
+        self.exp=exp
+    
     def __str__(self):
-        
-        print(str(self.cur))
-        print(str(self.cur) + " \n"+str(self.pre))
-        return "(next %s : %s)" % (str(self.pre), str(self.cur))
-        # return str(self.pre)
+        return "(next %s : %s)" % (str(self.nid), str(self.exp))
 
-    def toPySmt(self, sort_map):
-        return next_var(self.cur.toPySmt(sort_map)).Equals(self.pre.toPySmt(sort_map))
+    def toPySmt(self, exp_map, sort_map):
+        return next_var(exp_map[self.nid].toPySmt(exp_map, sort_map)).Equals(self.exp.toPySmt(exp_map, sort_map))
 
 
 class PropertyEnum(Enum):
@@ -681,8 +794,8 @@ class Property():
     def __str__(self):
         return "%s:\n%s" % (str(self.kind), str(self.nExp))
 
-    def toPySmt(self, sort_map):
-        return self.nExp.toPySmt(sort_map)
+    def toPySmt(self, exp_map, sort_map):
+        return self.nExp.toPySmt(exp_map, sort_map)
 
 
 # 存储justice
@@ -705,16 +818,14 @@ def findNodes(exp: expType):
     return nodes
 
 
+
+
 class Btor2():
     def __init__(self, lines):
-        self.sort_map = {}
+        '''
+        语法分析
+        '''
         self.node_map = {}
-        self.exp_map = {}
-        self.next_map = {}  # next
-        self.init_map = {}  # init
-        self.prop_map = {}  # 属性
-        self.var_map = {}  # 变量input/state
-
         for line in lines:
             if isinstance(line[0], StateKind):
                 if len(line) > 1:
@@ -727,120 +838,53 @@ class Btor2():
             if isinstance(line[0], nodeType):
                 self.node_map[line[0].nodeID.id] = line[0]
 
+        '''
+        老师要求的exp和statement
+        '''
+        self.exp_map = {}   #exp存储在这里
+        self.nextStatement_map = {}  # next存储在这里
+
+        #  node2Exp
+        for node in self.node_map.values():
+            if not isinstance(node, (NextKind,InitKind,PropertyKind,JusticeKind,SortKind)):
+                self.exp_map = node.node2Exp(self.node_map)
+        # nextDict
+        for node in self.node_map.values():
+            if isinstance(node, NextKind):
+                self.nextStatement_map[node.nodeID.id] = Statement(node.nid,self.exp_map[node.prenid])
+
+
+        '''
+            我定义PySmt迁移系统需要的
+        '''
+        self.sort_map = {}  # sort存在这里
+        self.init_map = {}  # init存在这里
+        self.prop_map = {}  # 属性存在这里
+        self.var_map = {}  # 变量input/state 存在这里
 
         for node in self.node_map.values():
-            assert (isinstance(node, nodeType))
-
-            # sortkind bv/arr
             if isinstance(node, SortKind):
-                self.sort_map[node.nodeID.id] = node
-
-            # inputkind input/const
-            elif isinstance(node, InputKind):
-                if isinstance(node.inpT, input1Type):
-                    sortId = node.inpT.sortId
-                    exp = InputExp(sortId, node.nodeID.id, node.name)
-                    self.var_map[exp.id] = exp
-                elif isinstance(node.inpT, constType):
-                    sortId = node.inpT.sortId
-                    val = node.inpT.val
-                    exp = ConstExp(sortId, val, node.nodeID.id)
-                elif isinstance(node.inpT, constdType):
-                    sortId = node.inpT.sortId
-                    val = node.inpT.val
-                    exp = ConstExp(sortId, val, node.nodeID.id)
-                elif isinstance(node.inpT, consthType):
-                    sortId = node.inpT.sortId
-                    val = node.inpT.val
-                    exp = ConstExp(sortId, val, node.nodeID.id)
-                self.exp_map[exp.id] = exp
+                self.sort_map[node.nodeID.id] =node
 
 
-            # statekind
-            elif isinstance(node, StateKind):
-                sortId = node.sid
-                exp = VarExp(sortId, node.nodeID.id, node.name)
-                self.exp_map[exp.id] = exp
-                self.var_map[exp.id] = exp
+        for node in self.node_map.values():
+            if isinstance(node, InitKind):
+                toInit = self.exp_map[node.nid]
+                initVal = self.exp_map[node.val]
+                self.init_map[node.nodeID.id] = Init(node.sid, toInit, initVal, node.nodeID.id)
 
-            # opidx 一个定义都没有，都是uifindexp
-            elif isinstance(node, IndOpKind):
-                sortId = node.sid
-                op = node.opT
-                es = self.exp_map[node.opdNid]
-                vals = [node.ns1, node.ns2]
-                exp = UifIndExp(sortId, op, es, node.nodeID.id, vals)
-                self.exp_map[exp.id] = exp
 
-            # op 只有readexp/iteexp/storeexp， 其他都是uifexp
-            elif isinstance(node, OpKind):
-                # ite
-                if node.opT == "ite":
-                    test = node.nodeID.id
-                    opdNids = node.opdNids
-                    sortId = node.sid
-                    b = self.exp_map[opdNids[0]]
-                    e1 = self.exp_map[opdNids[1]]
-                    e2 = self.exp_map[opdNids[2]]
-                    exp = IteExp(sortId, b, e1, e2, node.nodeID.id)
-                    # print(1)
-                # read
-                elif node.opT == "read":
-                    opdNids = node.opdNids
-                    sortId = node.sid
-                    mem = self.exp_map[opdNids[0]]
-                    adr = self.exp_map[opdNids[1]]
-                    exp = ReadExp(sortId, mem, adr, node.nodeID.id)
-                elif node.opT == "write":
-                    opdNids = node.opdNids
-                    sortId = node.sid
-                    mem = self.exp_map[opdNids[0]]
-                    adr = self.exp_map[opdNids[1]]
-                    content = self.exp_map[opdNids[2]]
-                    exp = StoreExp(sortId, mem, adr, content, node.nodeID.id)
-                else:
+        for node in self.node_map.values():
+            if isinstance(node,InputKind) and isinstance(node.inpT, input1Type):
+                self.var_map[node.nodeID.id] = InputExp(node.inpT.sortId, node.nodeID.id, node.name)
 
-                    sortId = node.sid
-                    opdNids = node.opdNids
-                    es = [self.exp_map[opdNids[0]]]
-                    if opdNids[1] is not None:
-                        es.append(self.exp_map[opdNids[1]])
-                    if opdNids[2] is not None:
-                        es.append(self.exp_map[opdNids[2]])
-                    exp = UifExp(sortId, node.opT, es, node.nodeID.id)
-                self.exp_map[exp.id] = exp
+        for node in self.node_map.values():
+            if isinstance(node,PropertyKind):
+                self.prop_map[node.nodeID.id] = Property(node.kind, self.exp_map[node.nid], node.nodeID.id)
+        
 
-            elif isinstance(node, NextKind):
-                sortId = node.sid
-                nid = node.nid
-                prenid = node.prenid
-                cur = self.exp_map[nid]
-                pre = self.exp_map[prenid]
-                exp = Next(sortId, cur, pre, node.nodeID.id)
-                self.next_map[exp.id] = exp
 
-            elif isinstance(node, InitKind):
-                sortId = node.sid
-                nid = node.nid
-                valid = node.val
-                toInit = self.exp_map[nid]
-                initVal = self.exp_map[valid]
-                exp = Init(sortId, toInit, initVal, node.nodeID.id)
-                self.init_map[exp.id] = exp
 
-            elif isinstance(node, PropertyKind):
-                kind = node.kind
-                nid = node.nid
-                nExp = self.exp_map[nid]
-                exp = Property(kind, nExp, node.nodeID.id)
-                self.prop_map[exp.id] = exp
-
-            elif isinstance(node, JusticeKind):
-                exp = Justice(node.num, node.nids, node.nodeID.id)
-                self.prop_map[exp.id] = exp
-
-            else:
-                print(str(node) + " : unkown!")
 
     def toTS_PySmtFormat(self):
 
@@ -850,12 +894,12 @@ class Btor2():
         nexts = []
         props = []
         for varExp in self.var_map.values():
-            vars.append(varExp.toPySmt(self.sort_map))
+            vars.append(varExp.toPySmt(self.exp_map,self.sort_map))
         for init in self.init_map.values():
-            inits.append(init.toPySmt(self.sort_map))
-        for next in self.next_map.values():
-            nexts.append(next.toPySmt(self.sort_map))
+            inits.append(init.toPySmt(self.exp_map,self.sort_map))
+        for next in self.nextStatement_map.values():
+            nexts.append(next.toPySmt(self.exp_map,self.sort_map))
         for prop in self.prop_map.values():
-            props.append(prop.toPySmt(self.sort_map))
+            props.append(prop.toPySmt(self.exp_map,self.sort_map))
 
         return TransitionSystem(vars, And(inits), And(nexts)), props
