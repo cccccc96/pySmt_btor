@@ -342,10 +342,10 @@ class OpKind(nodeType):
         return node_exp_map
 
 class NextKind(nodeType):
-    def __init__(self, line, sid, nid, prenid):
+    def __init__(self, line, sid, curnid, prenid):
         self.nodeID = nodeId(line)
         self.sid = sid
-        self.nid = nid
+        self.curnid = curnid
         self.prenid = prenid
 
     def __str__(self):
@@ -445,8 +445,7 @@ class ConstExp(expType):
     def preExp(self, sort_map, stm_map):
         return self
 
-    def size(self):
-        return 1
+
 
 class VarExp(expType):
     def __init__(self, sortId, id, name=None):
@@ -473,8 +472,7 @@ class VarExp(expType):
         print("执行替换：  替换  node%d   为   %s" % (self.id,str(stm_map[self.id])))
         return stm_map[self.id]
 
-    def size(self):
-        return 1
+
 
 class InputExp(expType):
     def __init__(self, sortId, id, name=None):
@@ -504,8 +502,7 @@ class InputExp(expType):
         # input不动
         return self
 
-    def size(self):
-        return 1
+
 
 class UifExp(expType):
     def __init__(self, sortId, op, es, id):
@@ -570,11 +567,7 @@ class UifExp(expType):
             es.append(e.preExp(sort_map, stm_map))
         return UifExp(self.sortId, self.op, es, self.id)
 
-    def size(self):
-        res = 1
-        for e in self.es:
-            res += e.size()
-        return res
+
 
 
 class UifIndExp(expType):
@@ -614,10 +607,7 @@ class UifIndExp(expType):
         es = self.es.preExp(sort_map, stm_map)
         return UifExp(self.sortId, es, self.id, self.opdNats)
 
-    def size(self):
-        res = 1
-        res += self.es.size()
-        return res
+
 
 class ReadExp(expType):
     def __init__(self, sortId, mem, adr, id):
@@ -647,10 +637,7 @@ class ReadExp(expType):
         adr = self.adr.preExp(sort_map, stm_map)
         return ReadExp(self.sortId, mem, adr, self.id)
 
-    def size(self):
-        res = 1
-        res += self.mem.size() + self.adr.size()
-        return res
+
 
 
 class IteExp(expType):
@@ -684,10 +671,7 @@ class IteExp(expType):
         e2 = self.e2.preExp(sort_map, stm_map)
         return IteExp(self.sortId, b, e1, e2, self.id)
 
-    def size(self):
-        res = 1
-        res += self.b.size() + self.e1.size() +self.e2.size()
-        return res
+
 
 class StoreExp(expType):
     def __init__(self, sortId, mem, adre, content, id):
@@ -717,10 +701,6 @@ class StoreExp(expType):
         content = self.content.preExp(sort_map, stm_map)
         return StoreExp(self.sortId, mem, adre, content, self.id)
 
-    def size(self):
-        res = 1
-        res += self.mem.size() + self.adre.size() +self.content.size()
-        return res
 
 # 存储init信息
 class Init():
@@ -851,7 +831,8 @@ class Btor2():
         # nextDict
         for node in self.node_map.values():
             if isinstance(node, NextKind):
-                self.nextStatement_map[node.nodeID.id] = Statement(node.nid,self.exp_map[node.prenid])
+                self.nextStatement_map[node.nodeID.id] = Statement(node.curnid,self.exp_map[node.prenid])
+
 
 
         '''

@@ -14,7 +14,8 @@ def test_preExp():
     print("调用preexp后性质:  "+str(bad.nExp.preExp(prot.sort_map,stm_map)))
 
 def test_toTS_PySmtFormat():
-    prot = parse_file("case/memory.btor2")
+    prot = parse_file("case/memory_wrong.btor2")
+    print(prot.exp_map[200])
     trans , prop = prot.toTS_PySmtFormat()
 
 def test_bmc():
@@ -25,5 +26,5 @@ def test_bmc():
 
 if __name__ == "__main__":
     # test_toTS_PySmtFormat()
-    test_bmc()
+    test_toTS_PySmtFormat()
     # test_toTS_PySmtFormat()
