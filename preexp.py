@@ -153,6 +153,7 @@ class InvSearch:
         self.idx = 0
         self.slv = Solver()
         self.next_map = self.system.next_map
+        self.preprop = prop
 
     def get_model(self):
         res = TRUE()
@@ -178,11 +179,29 @@ class InvSearch:
         print(And(self.invs))
         return True
 
+    def run_with_preexp(self):
+        self.slv.add_assertion(self.prop)
+        self.slv.add_assertion(self.system.trans)
+        while self.idx < len(self.invs):
+            if self.slv.is_sat(Not(substitute(self.invs[self.idx], self.next_map))):
+                self.preprop = substitute(self.preprop, self.system.update)
+                print(self.preprop)
+                if self.slv.is_sat(And(Not(self.preprop), self.system.init)):
+                    print("sat.")
+                    return False
+                self.invs.append(self.preprop)
+                self.slv.add_assertion(self.invs[-1])
+            else:
+                self.idx += 1
+        print("unsat.\ninv: ")
+        print(And(self.invs))
+        return True
+
 
 if __name__ == '__main__':
     ts, props = counter(8)
     # ind = KInduction(ts, props[0])
     # ind.check_property()
     print(props[0])
-    inv = InvSearch(ts, props[1])
-    inv.run()
+    inv = InvSearch(ts, props[0])
+    inv.run_with_preexp()
