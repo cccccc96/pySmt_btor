@@ -6,6 +6,7 @@ from pysmt.type_checker import SimpleTypeChecker
 
 
 from btor2parser import *
+from btor2 import *
 
 
 def next_var(v):
@@ -55,15 +56,16 @@ class BMC(object):
         res = []
         for i in range(k+1):
             subs_i = self.get_subs(i)
-            res.append(Ite(BVNot(prop.substitute(subs_i)).Equals(BV(1,1)),TRUE(),FALSE()))
+            width =get_type(prop.substitute(subs_i)).width
+            res.append(prop.substitute(subs_i).Equals(BV(1,width)))
         return And(res)
 
     def get_bmc(self, prop, k):
         """init /\ path /\ notP """
         init_0 = self.system.init.substitute(self.get_subs(0))
-        path_0_k = self.get_paths(k)
-        prop_0_k = self.get_notProps(prop, k)
-        return And(path_0_k, init_0, prop_0_k)
+        path_0_to_k = self.get_paths(k)
+        prop_0_to_k = self.get_notProps(prop, k)
+        return And(path_0_to_k, init_0, prop_0_to_k)
 
     def run_bmc(self, prop, k):
         f = self.get_bmc(prop,k)

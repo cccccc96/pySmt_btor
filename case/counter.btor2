@@ -16,7 +16,7 @@
 13 const 1 1
 14 not 1 10  ;(X==0)
 15 and 1 13 14
-16 bad 15
+16 bad 10
 17 uext 1 10 0 prop
 18 add 4 6 5 ;X+1
 19 const 4 1111  ;const 15
