@@ -22,6 +22,7 @@ class Sim(object):
         self.system = system
         self.solver = Solver()
 
+
     def get_subs(self, i):
         # 获取时刻i和时刻i+1的变量，以map的形式存储
         subs_i = {}
