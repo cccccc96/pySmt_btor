@@ -54,20 +54,32 @@ class BMC(object):
     def get_badstates(self,badstate, k):
         # not P(V0) /\ not P(V1) ... /\ not P(Vk)
         res = []
-        for i in range(k+1):
+        for i in range(k):
             subs_i = self.get_subs(i)
             res.append(badstate.substitute(subs_i).Equals(BV(1,1)))
+        return Or(res)
+
+    def getConstrains(self,constrains,k):
+        res = []
+        for t in range(k+1):
+            for constrain in constrains:
+                # res.append(constrain)
+                res.append(constrain.substitute(self.get_subs(t)).Equals(BV(1,1)))
         return And(res)
 
-    def get_bmc(self, prop, k):
+    def get_bmc(self,constrains, badstate, k):
         """init /\ path /\ notP """
         init_0 = self.system.init.substitute(self.get_subs(0))
         path_0_to_k = self.get_paths(k)
-        badstates_0_to_k = self.get_badstates(prop, k)
-        return And(path_0_to_k, init_0, badstates_0_to_k)
+        badstates_0_to_k = self.get_badstates(badstate, k)
+        constrains = self.getConstrains(constrains,k)
+        return And(path_0_to_k,constrains, init_0, badstates_0_to_k)
+
+
 
     def run_bmc(self, constraints, badstates, k):
-        f = self.get_bmc(badstates[0],k)
+
+        f = self.get_bmc(constraints,badstates[0],k)
         print(get_model(f))
         if is_sat(f):
             print("bug find")

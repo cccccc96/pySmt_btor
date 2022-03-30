@@ -895,3 +895,14 @@ class Btor2():
 
         # return TransitionSystem(vars, And(inits), nexts[7]), constraints, badstates
         return TransitionSystem(vars, And(inits), And(nexts)), constraints, badstates
+
+    '''
+    学长需要的update
+    '''
+    def get_update(self):
+        res =dict()
+        for next in self.nextStatement_map.values():
+            key = self.exp_map[next.nid].toPySmt(self.exp_map, self.sort_map, self.node_exp_map)
+            value =next.exp.toPySmt(self.exp_map, self.sort_map, self.node_exp_map)
+            res[key]=value
+        return res

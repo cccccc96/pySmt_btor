@@ -16,14 +16,16 @@ def test_preExp():
     print("调用preexp后性质:  "+str(bad.nExp.preExp(prot.sort_map,stm_map)))
 
 def test_toTS_PySmtFormat():
-    prot = parse_file("case/counter_wrong.btor2")
+    prot = parse_file("case/memory_wrong.btor2")
     trans , constraints, badstates = prot.toTS_PySmtFormat()
+    update = prot.get_update()
+    return
 
 def test_bmc():
     prot = parse_file("case/memory_wrong.btor2")
     trans , constraints, badstates = prot.toTS_PySmtFormat()
     bmc = BMC(trans)
-    bmc.run_bmc(constraints, badstates,10)
+    bmc.run_bmc(constraints, badstates,4)
 
 def test_sim():
     prot = parse_file("case/memory_wrong.btor2")
@@ -33,6 +35,6 @@ def test_sim():
 
 if __name__ == "__main__":
     # test_toTS_PySmtFormat()
-    test_sim()
+    test_toTS_PySmtFormat()
     # test_toTS_PySmtFormat()
     # test_sim()

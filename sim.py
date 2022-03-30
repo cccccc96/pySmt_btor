@@ -59,24 +59,54 @@ class Sim(object):
         return And(path_0_to_k, init_0, inputs_0_to_k)
 
     def run_sim(self, badstates,prot):
-        k = 3
+        k = 4
+
+        res = []
+        for t in range(k):
+            i=19
+            res.append(at_time(Symbol("badstate"+str(prot.exp_map[i].id),prot.sort_map[prot.exp_map[i].sortId].toPySmt(prot.exp_map, prot.sort_map, prot.node_exp_map)),t).Equals(prot.node_exp_map[i].substitute(self.get_subs(t))))
+
+
         inputs = [
-            (Symbol('rst', BVType(1)), BV(0, 1), 0),
+            (Symbol('clk', BVType(1)), BV(0, 1), 0),
+            (Symbol('flag', BVType(1)), BV(0, 1), 0),
+            (Symbol('in_data', BVType(8)), BV(0, 8), 0),
+            (Symbol('in_rd', BVType(1)), BV(0, 1), 0),
+            (Symbol('in_rd_addr', BVType(4)), BV(0, 4), 0),
+            (Symbol('in_wr', BVType(1)), BV(1, 1), 0),
+            (Symbol('in_wr_addr', BVType(4)), BV(0, 4), 0),
+            (Symbol('rst_n', BVType(1)), BV(0, 1), 0),
 
-            (Symbol('rst', BVType(1)), BV(1, 1), 1),
-            (Symbol('in_wr_addr', BVType(4)), BV(1, 4), 1),
-            (Symbol('in_wr', BVType(1)), BV(1, 1), 1),
+            (Symbol('clk', BVType(1)), BV(0, 1), 1),
+            (Symbol('flag', BVType(1)), BV(0, 1), 1),
+            (Symbol('in_data', BVType(8)), BV(128, 8), 1),
             (Symbol('in_rd', BVType(1)), BV(0, 1), 1),
-            (Symbol('in_data', BVType(8)), BV(2, 8), 1),
+            (Symbol('in_rd_addr', BVType(4)), BV(0, 4), 1),
+            (Symbol('in_wr', BVType(1)), BV(1, 1), 1),
+            (Symbol('in_wr_addr', BVType(4)), BV(0, 4), 1),
+            (Symbol('rst_n', BVType(1)), BV(1, 1), 1),
 
-            (Symbol('rst', BVType(1)), BV(1, 1), 2),
-            (Symbol('in_rd_addr', BVType(4)), BV(1, 4), 2),
-            (Symbol('in_wr', BVType(1)), BV(0, 1), 2),
-            (Symbol('in_rd', BVType(1)), BV(1, 1), 2),
-            (Symbol('in_data', BVType(8)), BV(2, 8), 2)
+            (Symbol('clk', BVType(1)), BV(0, 1), 2),
+            (Symbol('flag', BVType(1)), BV(1, 1), 2),
+            (Symbol('in_data', BVType(8)), BV(0, 8), 2),
+            (Symbol('in_rd', BVType(1)), BV(0, 1), 2),
+            (Symbol('in_rd_addr', BVType(4)), BV(0, 4), 2),
+            (Symbol('in_wr', BVType(1)), BV(1, 1), 2),
+            (Symbol('in_wr_addr', BVType(4)), BV(0, 4), 2),
+            (Symbol('rst_n', BVType(1)), BV(1, 1), 2),
+
+            (Symbol('clk', BVType(1)), BV(0, 1), 3),
+            (Symbol('flag', BVType(1)), BV(0, 1), 3),
+            (Symbol('in_data', BVType(8)), BV(0, 8), 3),
+            (Symbol('in_rd', BVType(1)), BV(0, 1), 3),
+            (Symbol('in_rd_addr', BVType(4)), BV(0, 4), 3),
+            (Symbol('in_wr', BVType(1)), BV(0, 1), 3),
+            (Symbol('in_wr_addr', BVType(4)), BV(0, 4), 3),
+            (Symbol('rst_n', BVType(1)), BV(0, 1), 3)
+
         ]
-
-        f = self.get_sim(inputs, k)
+        bads = And(res)
+        f = And(self.get_sim(inputs, k),bads)
         print(f)
         print('------')
         print(get_model(f))

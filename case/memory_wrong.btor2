@@ -9,7 +9,7 @@
 8 input 7 in_rd_addr ; memory.sv:8.23-8.33
 9 input 1 in_wr ; memory.sv:4.11-4.16
 10 input 7 in_wr_addr ; memory.sv:7.23-7.33
-11 input 1 rst ; memory.sv:3.11-3.16
+11 input 1 rst_n ; memory.sv:3.11-3.16
 12 state 4
 13 output 12 out_data ; memory.sv:9.28-9.36
 14 state 1
