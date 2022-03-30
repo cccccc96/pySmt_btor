@@ -33,6 +33,6 @@ def test_sim():
 
 if __name__ == "__main__":
     # test_toTS_PySmtFormat()
-    test_bmc()
+    test_sim()
     # test_toTS_PySmtFormat()
     # test_sim()
