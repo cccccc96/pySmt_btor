@@ -99,30 +99,30 @@
 74 next 1 48 73       ; 将id_65的结果放到id_48(random_data)
 
 ; mem 的写操作
-75 ite 1 9 13 25      ; rst_n ? 0 : 1
-76 read 1 50 13       ; mem[0]
-77 not 1 75           ; rst_n
-78 and 1 76 77        ; mem[0] && rst_n
-79 and 1 13 75        ; 0 && !rst_n 
-80 or 1 79 78         ; mem[0] && rst_n
-81 write 49 50 13 80  ; mem[0] = mem[0] && rst_n
-82 redor 1 75         ; !rst_n
-83 ite 49 82 81 50    ; !rst_n ? mem[0] = mem[0] && rst_n : mem
+75 ite 1 9 13 25      ;0 rst_n ? 0 : 1
+76 read 1 50 13       ;1 mem[0]
+77 not 1 75           ;1 rst_n
+78 and 1 76 77        ;1 mem[0] && rst_n
+79 and 1 13 75        ;0 0 && !rst_n
+80 or 1 79 78         ;1 mem[0] && rst_n
+81 write 49 50 13 80  ;1 mem[0] = mem[0] && rst_n
+82 redor 1 75         ;0 !rst_n
+83 ite 49 82 81 50    ;1 !rst_n ? mem[0] = mem[0] && rst_n : mem
 
-84 read 1 83 25       ; 可能修改后的mem的mem[1]
-85 not 1 75
-86 and 1 84 85        ; rst_n && mem[1]
-87 and 1 13 75
-88 or 1 87 86
-89 write 49 83 25 88
-90 redor 1 75
-91 ite 49 90 89 83    ; !rst_n ? mem[1] = mem[1] && rst_n : mem
+84 read 1 83 25       ;1 可能修改后的mem的mem[1]
+85 not 1 75           ;1
+86 and 1 84 85        ;1
+87 and 1 13 75        ;0
+88 or 1 87 86         ;1
+89 write 49 83 25 88  ;1
+90 redor 1 75         ;0
+91 ite 49 90 89 83    ;1
 
 92 input 1
 93 input 1
 94 input 1
-95 ult 1 8 25         ; in_wr_addr < 1
-96 ite 1 95 4 94      ; in_wr_addr < 1 ? in_data : input 1
+95 ult 1 8 25         ;1 in_wr_addr < 1
+96 ite 1 95 4 94      ;1 in_wr_addr < 1 ? in_data : input 1
 97 ite 1 7 96 93      ; in_wr ? id_96 : input 1 ...
 98 ite 1 9 97 92      ; rst_n ? id_97 : input 1
 

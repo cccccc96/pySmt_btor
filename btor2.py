@@ -858,9 +858,9 @@ class Btor2():
                 initVal = self.exp_map[node.val]
                 self.init_map[node.nodeID.id] = Init(node.sid, toInit, initVal, node.nodeID.id)
 
-        for node in self.node_map.values():
-            if isinstance(node, InputKind) and isinstance(node.inpT, input1Type):
-                self.var_map[node.nodeID.id] = InputExp(node.inpT.sortId, node.nodeID.id, node.name)
+        for i in self.exp_map:
+            if isinstance(self.exp_map[i], (InputExp,VarExp)):
+                self.var_map[i] = self.exp_map[i]
 
         for node in self.node_map.values():
             if isinstance(node, PropertyKind):
@@ -877,7 +877,8 @@ class Btor2():
         vars = []
         inits = []
         nexts = []
-        props = []
+        constraints = []
+        badstates = []
 
         for varExp in self.var_map.values():
             vars.append(varExp.toPySmt(self.exp_map, self.sort_map, self.node_exp_map))
@@ -887,10 +888,10 @@ class Btor2():
             nexts.append(next.toPySmt(self.exp_map, self.sort_map, self.node_exp_map))
         for prop in self.prop_map.values():
             if prop.kind is PropertyEnum.constraint:
-                # 待修改： constraint 应该类似assume？要加到每一步里，对比一下pono，之后记得处理
-                inits.append(prop.toPySmt(self.exp_map, self.sort_map, self.node_exp_map).Equals(BV(1, 1)))
-                nexts.append(prop.toPySmt(self.exp_map, self.sort_map, self.node_exp_map).Equals(BV(1, 1)))
-            else:
-                props.append(prop.toPySmt(self.exp_map, self.sort_map, self.node_exp_map))
+                # 待修改： constraint 应该类似assume？要加到每一步里，参照一下pono，之后记得处理
+                constraints.append(prop.toPySmt(self.exp_map, self.sort_map, self.node_exp_map))
+            elif prop.kind is PropertyEnum.bad:
+                badstates.append(prop.toPySmt(self.exp_map, self.sort_map, self.node_exp_map))
 
-        return TransitionSystem(vars, And(inits), And(nexts)), props
+        # return TransitionSystem(vars, And(inits), nexts[7]), constraints, badstates
+        return TransitionSystem(vars, And(inits), And(nexts)), constraints, badstates

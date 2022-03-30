@@ -3,7 +3,7 @@
 from pysmt.shortcuts import *
 from pysmt.typing import BOOL, BVType
 from pysmt.type_checker import SimpleTypeChecker
-
+from pysmt import shortcuts
 
 from btor2parser import *
 from btor2 import *
@@ -45,30 +45,29 @@ class BMC(object):
     def get_paths(self, k):
         # path(0,1) /\ path(1,2) ... /\ path(k-1,k)
         res = []
-        for i in range(k+1):
+        for i in range(k):
             subs_i = self.get_subs(i)
             res.append(self.system.trans.substitute(subs_i))
         x = And(res)
         return And(res)
 
-    def get_notProps(self,prop, k):
+    def get_badstates(self,badstate, k):
         # not P(V0) /\ not P(V1) ... /\ not P(Vk)
         res = []
         for i in range(k+1):
             subs_i = self.get_subs(i)
-            width =get_type(prop.substitute(subs_i)).width
-            res.append(prop.substitute(subs_i).Equals(BV(1,width)))
+            res.append(badstate.substitute(subs_i).Equals(BV(1,1)))
         return And(res)
 
     def get_bmc(self, prop, k):
         """init /\ path /\ notP """
         init_0 = self.system.init.substitute(self.get_subs(0))
         path_0_to_k = self.get_paths(k)
-        prop_0_to_k = self.get_notProps(prop, k)
-        return And(path_0_to_k, init_0, prop_0_to_k)
+        badstates_0_to_k = self.get_badstates(prop, k)
+        return And(path_0_to_k, init_0, badstates_0_to_k)
 
-    def run_bmc(self, prop, k):
-        f = self.get_bmc(prop,k)
+    def run_bmc(self, constraints, badstates, k):
+        f = self.get_bmc(badstates[0],k)
         print(get_model(f))
         if is_sat(f):
             print("bug find")

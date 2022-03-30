@@ -4,6 +4,7 @@ from btor2parser import *
 from pysmt.shortcuts import simplify
 from pysmt import shortcuts
 from bmc import *
+from sim import *
 
 def test_preExp():
     prot = parse_file("case/memory.btor2")
@@ -16,15 +17,22 @@ def test_preExp():
 
 def test_toTS_PySmtFormat():
     prot = parse_file("case/counter_wrong.btor2")
-    trans , prop = prot.toTS_PySmtFormat()
+    trans , constraints, badstates = prot.toTS_PySmtFormat()
 
 def test_bmc():
     prot = parse_file("case/memory_wrong.btor2")
-    trans , prop = prot.toTS_PySmtFormat()
+    trans , constraints, badstates = prot.toTS_PySmtFormat()
     bmc = BMC(trans)
-    bmc.run_bmc(prop[1],100)
+    bmc.run_bmc(constraints, badstates,10)
+
+def test_sim():
+    prot = parse_file("case/memory_wrong.btor2")
+    trans , constraints, badstates = prot.toTS_PySmtFormat()
+    sim = Sim(trans)
+    sim.run_sim(badstates,prot)
 
 if __name__ == "__main__":
     # test_toTS_PySmtFormat()
     test_bmc()
     # test_toTS_PySmtFormat()
+    # test_sim()
