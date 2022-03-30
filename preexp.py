@@ -19,6 +19,9 @@ class TransitionSystem(object):
         self.init = init
         self.trans = trans
         self.update = update
+        self.next_map = dict()
+        for v in self.variables:
+            self.next_map[v] = next_var(v)
 
 
 class KInduction:
@@ -142,8 +145,63 @@ def counter(bit_count):
     return TransitionSystem(variables, init, trans, update), [true_prop, false_prop]
 
 
+class InvSearch:
+    def __init__(self, system: TransitionSystem, prop):
+        self.system = system
+        self.prop = prop
+        self.invs = [prop]
+        self.idx = 0
+        self.slv = Solver()
+        self.next_map = self.system.next_map
+        self.preprop = prop
+
+    def get_model(self):
+        res = TRUE()
+        for v in self.system.variables:
+            res = And(res, EqualsOrIff(v, self.slv.get_model()[v]))
+        return res
+
+    def run(self):
+        self.slv.add_assertion(self.prop)
+        self.slv.add_assertion(self.system.trans)
+        while self.idx < len(self.invs):
+            if self.slv.is_sat(Not(substitute(self.invs[self.idx], self.next_map))):
+                print(self.get_model())
+                model = self.get_model()
+                if self.slv.is_sat(And(model, self.system.init)):
+                    print("sat.")
+                    return False
+                self.invs.append(Not(model))
+                self.slv.add_assertion(self.invs[-1])
+            else:
+                self.idx += 1
+        print("unsat.\ninv: ")
+        print(And(self.invs))
+        return True
+
+    def run_with_preexp(self):
+        self.slv.add_assertion(self.prop)
+        self.slv.add_assertion(self.system.trans)
+        while self.idx < len(self.invs):
+            if self.slv.is_sat(Not(substitute(self.invs[self.idx], self.next_map))):
+                self.preprop = substitute(self.preprop, self.system.update)
+                print(self.preprop)
+                if self.slv.is_sat(And(Not(self.preprop), self.system.init)):
+                    print("sat.")
+                    return False
+                self.invs.append(self.preprop)
+                self.slv.add_assertion(self.invs[-1])
+            else:
+                self.idx += 1
+        print("unsat.\ninv: ")
+        print(And(self.invs))
+        return True
+
+
 if __name__ == '__main__':
     ts, props = counter(8)
-    ind = KInduction(ts, props[0])
-    ind.check_property()
-
+    # ind = KInduction(ts, props[0])
+    # ind.check_property()
+    print(props[0])
+    inv = InvSearch(ts, props[0])
+    inv.run_with_preexp()
