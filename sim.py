@@ -64,7 +64,7 @@ class Sim(object):
         res = []
         for t in range(k):
             i=19
-            res.append(at_time(Symbol("badstate"+str(prot.exp_map[i].id),prot.sort_map[prot.exp_map[i].sortId].toPySmt(prot.exp_map, prot.sort_map, prot.node_exp_map)),t).Equals(prot.node_exp_map[i].substitute(self.get_subs(t))))
+            res.append(at_time(Symbol("badstate"+str(prot.exp_map[i].id),prot.sort_map[prot.exp_map[i].sortId].toPySmt(prot.sort_map, {})),t).Equals(prot.exp_map[i].toPySmt(prot.sort_map, {}).substitute(self.get_subs(t))))
 
 
         inputs = [
