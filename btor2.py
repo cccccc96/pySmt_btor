@@ -456,7 +456,7 @@ class ConstExp(expType):
     def simplified_ite(self, visited, b_map):
         return self
 
-    def get_inner_ites(self, ite_list):
+    def get_inner_ites(self, ite_list, visited):
         return
 
 
@@ -482,13 +482,13 @@ class VarExp(expType):
         return Symbol(name, typename)
 
     def preExp(self, sort_map, stm_map):
-        print("执行替换：  替换  node%d   为   %s" % (self.id, str(stm_map[self.id])))
+        print("执行替换：  替换  %s   为   %s" % (self.name, str(stm_map[self.id])))
         return stm_map[self.id]
 
     def simplified_ite(self, visited, b_map):
         return self
 
-    def get_inner_ites(self, ite_list):
+    def get_inner_ites(self, ite_list,visited):
         return
 
 
@@ -522,7 +522,7 @@ class InputExp(expType):
     def simplified_ite(self, visited, b_map):
         return self
 
-    def get_inner_ites(self, ite_list):
+    def get_inner_ites(self, ite_list, visited):
         return
 
 
@@ -613,9 +613,14 @@ class UifExp(expType):
         visited[self.id] = UifExp(self.sortId, self.op, es, self.id)
         return UifExp(self.sortId, self.op, es, self.id)
 
-    def get_inner_ites(self, ite_list):
+    def get_inner_ites(self, ite_list, visited):
+        if self.id in visited:
+            return
+        else:
+            visited.append(self.id)
         for e in self.es:
-            e.get_inner_ites(ite_list)
+            e.get_inner_ites(ite_list, visited)
+
 
 
 class UifIndExp(expType):
@@ -664,8 +669,12 @@ class UifIndExp(expType):
         visited[self.id] = UifExp(self.sortId, es, self.id, self.opdNats)
         return UifExp(self.sortId, es, self.id, self.opdNats)
 
-    def get_inner_ites(self, ite_list):
-        self.es.get_inner_ites(ite_list)
+    def get_inner_ites(self, ite_list, visited):
+        if self.id in visited:
+            return
+        else:
+            visited.append(self.id)
+        self.es.get_inner_ites(ite_list, visited)
 
 
 class ReadExp(expType):
@@ -703,9 +712,13 @@ class ReadExp(expType):
         visited[self.id] = ReadExp(self.sortId, mem, adr, self.id)
         return ReadExp(self.sortId, mem, adr, self.id)
 
-    def get_inner_ites(self, ite_list):
-        self.mem.get_inner_ites(ite_list)
-        self.adr.get_inner_ites(ite_list)
+    def get_inner_ites(self, ite_list, visited):
+        if self.id in visited:
+            return
+        else:
+            visited.append(self.id)
+        self.mem.get_inner_ites(ite_list, visited)
+        self.adr.get_inner_ites(ite_list, visited)
 
 
 class IteExp(expType):
@@ -748,7 +761,7 @@ class IteExp(expType):
         return IteExp(self.sortId, b, e1, e2, self.id)
 
     def simplified_ite(self, visited, b_map):
-        b = b_map[self.id]
+        b = b_map[self.b.id]
         e1 = visited[self.e1.id] if self.e1.id in visited else self.e1.simplified_ite(visited, b_map)
         e2 = visited[self.e2.id] if self.e2.id in visited else self.e2.simplified_ite(visited, b_map)
         # visited[self.id] = IteExp(self.sortId, b, e1, e2, self.id)
@@ -760,12 +773,16 @@ class IteExp(expType):
         visited[self.id] = res
         return res
 
-    def get_inner_ites(self, ite_list):
-        if self.id not in ite_list:
-            ite_list.append(self.id)
-        self.b.get_inner_ites(ite_list)
-        self.e1.get_inner_ites(ite_list)
-        self.e2.get_inner_ites(ite_list)
+    def get_inner_ites(self, ite_list, visited):
+        if self.id in visited:
+            return
+        else:
+            visited.append(self.id)
+        if self.b.id not in ite_list:
+            ite_list.append(self.b.id)
+        self.b.get_inner_ites(ite_list, visited)
+        self.e1.get_inner_ites(ite_list, visited)
+        self.e2.get_inner_ites(ite_list, visited)
 
 
 class StoreExp(expType):
@@ -809,10 +826,14 @@ class StoreExp(expType):
         visited[self.id] = StoreExp(self.sortId, mem, adre, content, self.id)
         return StoreExp(self.sortId, mem, adre, content, self.id)
 
-    def get_inner_ites(self, ite_list):
-        self.mem.get_inner_ites(ite_list)
-        self.adre.get_inner_ites(ite_list)
-        self.content.get_inner_ites(ite_list)
+    def get_inner_ites(self, ite_list, visited):
+        if self.id in visited:
+            return
+        else:
+            visited.append(self.id)
+        self.mem.get_inner_ites(ite_list, visited)
+        self.adre.get_inner_ites(ite_list, visited)
+        self.content.get_inner_ites(ite_list, visited)
 
 
 # 存储init信息
