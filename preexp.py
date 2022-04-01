@@ -1,4 +1,7 @@
 from pysmt.shortcuts import *
+import btor2parser
+import PySmtUtil
+import vcd
 
 
 def next_var(v):
@@ -22,6 +25,20 @@ class TransitionSystem(object):
         self.next_map = dict()
         for v in self.variables:
             self.next_map[v] = next_var(v)
+
+    @classmethod
+    def buildFrom(cls, ts: PySmtUtil.TransitionSystem, constraints, update):
+        constraint = And(map(lambda x: x.Equals(BV(1, 1)), constraints))
+        init = And(constraint, ts.init)
+        trans = And(constraint, ts.trans)
+        return cls(ts.variables, init, trans, update)
+
+    @classmethod
+    def buildFromBtor(cls, file: str):
+        prot = btor2parser.parse_file(file)
+        old_ts, constraints, bads = prot.toTS_PySmtFormat()
+        update = prot.get_update()
+        return cls.buildFrom(old_ts, constraints, update), bads
 
 
 class KInduction:
@@ -145,6 +162,16 @@ def counter(bit_count):
     return TransitionSystem(variables, init, trans, update), [true_prop, false_prop]
 
 
+def testCounter():
+    ts, props = counter(8)
+    print(ts.update)
+    ind = KInduction(ts, props[0])
+    ind.check_property()
+    print(props[0])
+    inv = InvSearch(ts, props[0])
+    inv.run_with_preexp()
+
+
 class InvSearch:
     def __init__(self, system: TransitionSystem, prop):
         self.system = system
@@ -184,7 +211,8 @@ class InvSearch:
         self.slv.add_assertion(self.system.trans)
         while self.idx < len(self.invs):
             if self.slv.is_sat(Not(substitute(self.invs[self.idx], self.next_map))):
-                self.preprop = substitute(self.preprop, self.system.update)
+                self.preprop = simplify(substitute(self.preprop, self.system.update))
+                print("add:", end=" ")
                 print(self.preprop)
                 if self.slv.is_sat(And(Not(self.preprop), self.system.init)):
                     print("sat.")
@@ -198,10 +226,21 @@ class InvSearch:
         return True
 
 
+def vcdTry():
+    file = open("counter.vcd", "w")
+    writer = vcd.VCDWriter(file)
+    reset = writer.register_var('counter', 'reset', 'wire', 1, init=0)
+    counter_var = writer.register_var('counter', 'x', 'reg', size=8, init=0)
+    for i in range(0, 8):
+        writer.change(reset, i, ~reset.value)
+        writer.change(counter_var, i, counter_var.value + 1)
+    writer.close()
+    file.close()
+
+
 if __name__ == '__main__':
-    ts, props = counter(8)
-    # ind = KInduction(ts, props[0])
-    # ind.check_property()
-    print(props[0])
-    inv = InvSearch(ts, props[0])
-    inv.run_with_preexp()
+    ts, bads = TransitionSystem.buildFromBtor("case/memory_assert.btor2")
+    # inv = InvSearch(ts, bads[0].Equals(BV(0, 1)))
+    # inv.run()
+    ind = KInduction(ts, bads[0].Equals(BV(0, 1)))
+    ind.check_property()
