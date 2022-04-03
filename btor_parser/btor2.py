@@ -2,7 +2,7 @@ from enum import Enum
 from pysmt import shortcuts
 from pysmt.shortcuts import *
 from pysmt.typing import *
-from PySmtUtil import next_var, TransitionSystem
+from MC_Util.PySmtUtil import next_var, TransitionSystem
 
 
 # def indent(s, num_space, first_line=None):

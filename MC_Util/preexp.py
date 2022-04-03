@@ -1,5 +1,5 @@
 from pysmt.shortcuts import *
-import btor2parser
+from btor_parser import btor2parser
 import PySmtUtil
 import vcd
 
@@ -239,7 +239,7 @@ def vcdTry():
 
 
 if __name__ == '__main__':
-    ts, bads = TransitionSystem.buildFromBtor("case/memory_assert.btor2")
+    ts, bads = TransitionSystem.buildFromBtor("../case/memory_assert.btor2")
     # inv = InvSearch(ts, bads[0].Equals(BV(0, 1)))
     # inv.run()
     ind = KInduction(ts, bads[0].Equals(BV(0, 1)))

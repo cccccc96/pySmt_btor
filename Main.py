@@ -1,10 +1,5 @@
-import z3
-
-from btor2parser import *
-from pysmt.shortcuts import simplify
-from pysmt import shortcuts
-from bmc import *
-from sim import *
+from MC_Util.invbmc import *
+from MC_Util.sim import *
 
 
 def test_preExp():
@@ -31,7 +26,14 @@ def test_bmc():
     prot = parse_file("case/memory_wrong.btor2")
     trans, constraints, badstates = prot.toTS_PySmtFormat()
     bmc = BMC(trans)
+    print(badstates[0])
     bmc.run_bmc(constraints, badstates, 4)
+
+def test_invbmc():
+    prot = parse_file("case/memory.btor2")
+    trans, constraints, badstates = prot.toTS_PySmtFormat()
+    bmc = INVBMC(trans, prot.get_update())
+    bmc.run_invbmc2(constraints, badstates, 5)
 
 
 def test_sim():
@@ -39,6 +41,8 @@ def test_sim():
     trans, constraints, badstates = prot.toTS_PySmtFormat()
     sim = Sim(trans)
     sim.run_sim(badstates, prot)
+    bmc = BMC(trans)
+    bmc.run_bmc(constraints, badstates, 4)
 
 
 def test_simplified_ite():
@@ -126,17 +130,18 @@ def test_simplified_ite():
 
     print('\n！（c2/\e2） :')
     print(res[1])
-    print(serialize(simplify(res[1].toPySmt(prot.sort_map, {}))))
+    print(serialize((res[1].toPySmt(prot.sort_map, {}))))
     print('再对 ！（c2/\e2）做preexp')
     test = res[1].preExp(prot.sort_map, stm_map)
     print(test)
-    print(serialize(simplify(test.toPySmt(prot.sort_map, {}))))
+    print(serialize((test.toPySmt(prot.sort_map, {}))))
     return res
 
 
 if __name__ == "__main__":
     # test_preExp()
-    test_simplified_ite()
+    # test_simplified_ite()
+    test_invbmc()
     # test_simplified_ite()
     # test_toTS_PySmtFormat()
     # test_toTS_PySmtFormat()

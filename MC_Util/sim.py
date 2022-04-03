@@ -1,9 +1,5 @@
-from pysmt.shortcuts import *
-from pysmt.typing import BOOL, BVType
-from pysmt.type_checker import SimpleTypeChecker
-
-from btor2parser import *
-from btor2 import *
+from btor_parser.btor2parser import *
+from btor_parser.btor2 import *
 
 
 def next_var(v):

@@ -1,0 +1,6 @@
+node1 is 12 and
+node2 is 13 and
+guard0 -> node4 is 3
+==>
+N N node1 is 32 and
+N N node2 is 2
