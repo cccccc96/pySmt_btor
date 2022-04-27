@@ -1,0 +1,13 @@
+../case/beem/brp2.2.prop1-func-interl.btor2,unsat,0.712041709
+../case/beem/elevator.4.prop1-func-interl.btor2,unsat,0.666437458
+../case/beem/rushhour.4.prop1-func-interl.btor2,unsat,31.05932875
+../case/beem/frogs.5.prop1-func-interl.btor2,unsat,1.7995595830000002
+../case/beem/blocks.4.prop1-back-serstep.btor2,unsat,3.1883363329999996
+../case/beem/brp2.6.prop3-back-serstep.btor2,unsat,6.481131084
+../case/beem/pgm_protocol.7.prop1-back-serstep.btor2,unsat,390.2770955
+../case/beem/msmie.3.prop1-func-interl.btor2,unsat,3.384372
+../case/beem/anderson.3.prop1-back-serstep.btor2,sat,1.2637604169999999
+../case/beem/peg_solitaire.3.prop1-back-serstep.btor2,sat,381.3495565
+../case/beem/at.6.prop1-back-serstep.btor2,unsat,278.734125333
+../case/beem/krebs.3.prop1-func-interl.btor2,sat,0.28402983299999995
+../case/beem/brp2.2.prop1-func-interl.btor2,unsat,0.749269167

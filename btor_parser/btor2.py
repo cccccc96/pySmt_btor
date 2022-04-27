@@ -123,6 +123,7 @@ class constType(inputType):
 
 class constdType(inputType):
     def __init__(self, sortId, val):
+        print(val)
         self.sortId = sortId
         self.val = val
 
@@ -289,6 +290,21 @@ class OpKind(nodeType):
         self.sid = sid
         self.opT = opT
         self.opdNids = opdNids
+        self.flag=None
+
+        # 判定and中的负数情况（beem例子）
+        if self.opdNids[1] is not None and self.opdNids[1]<0:
+            self.opdNids = list(self.opdNids)
+            self.opdNids[1]=-self.opdNids[1]
+            self.flag=1
+        if self.opdNids[0] is not None and self.opdNids[0]<0:
+            self.opdNids = list(self.opdNids)
+            self.opdNids[0]=-self.opdNids[0]
+            self.flag=0
+        if self.opdNids[2] is not None and self.opdNids[2]<0:
+            self.opdNids = list(self.opdNids)
+            self.opdNids[2]=-self.opdNids[2]
+            self.flag=2
 
     def __str__(self):
         return "OpNode %s(%s): %s @%s" % (str(self.opT), self.opdNids, self.sid, str(self.nodeID))
@@ -308,7 +324,7 @@ class OpKind(nodeType):
             b = node_exp_map[opdNids[0]]
             e1 = node_exp_map[opdNids[1]]
             e2 = node_exp_map[opdNids[2]]
-            node_exp_map[self.nodeID.id] = IteExp(sortId, b, e1, e2, self.nodeID.id)
+            node_exp_map[self.nodeID.id] = IteExp(sortId, b, e1, e2, self.nodeID.id, self.flag)
             # print(1)
         # read
         elif self.opT == "read":
@@ -325,7 +341,6 @@ class OpKind(nodeType):
             content = node_exp_map[opdNids[2]]
             node_exp_map[self.nodeID.id] = StoreExp(sortId, mem, adr, content, self.nodeID.id)
         else:
-
             sortId = self.sid
             opdNids = self.opdNids
             es = [node_exp_map[opdNids[0]]]
@@ -333,7 +348,7 @@ class OpKind(nodeType):
                 es.append(node_exp_map[opdNids[1]])
             if opdNids[2] is not None:
                 es.append(node_exp_map[opdNids[2]])
-            node_exp_map[self.nodeID.id] = UifExp(sortId, self.opT, es, self.nodeID.id)
+            node_exp_map[self.nodeID.id] = UifExp(sortId, self.opT, es, self.nodeID.id,self.flag)
         return node_exp_map
 
 
@@ -522,18 +537,25 @@ class InputExp(expType):
     def simplified_ite(self, visited, b_map):
         return self
 
-    def get_inner_ites(self, ite_list, visited):
+    def get_inner_ites(self, ite_list,visited):
         return
 
 
 class UifExp(expType):
-    def __init__(self, sortId, op, es, id):
+    def __init__(self, sortId, op, es, id,flag=None):
         self.sortId = sortId
         self.op = op
         self.es = es
         self.id = id
+        self.flag=flag #判定有无负数
 
     def __str__(self):
+        if(self.op=='and'):
+            return '(' +str(self.es[0]) + '&'+ str(self.es[1]) + ')'
+        if (self.op == 'eq'):
+            return '(' + str(self.es[0]) + '=' + str(self.es[1]) + ')'
+        if (self.op == 'not'):
+            return '!' + str(self.es[0])
         return " %s(%s) " % (self.op, ', '.join(str(e) for e in self.es))
 
     def __repr__(self):
@@ -554,18 +576,32 @@ class UifExp(expType):
             subExp = self.es[0]
             subExp_Smt = visited[subExp.id] if subExp.id in visited else subExp.toPySmt(sort_map, visited)
             res = BVNot(subExp_Smt)
+        elif self.op == "neg":
+            subExp = self.es[0]
+            subExp_Smt = visited[subExp.id] if subExp.id in visited else subExp.toPySmt(sort_map, visited)
+            res = BVNeg(subExp_Smt)
         elif self.op == "and":
             left = self.es[0]
             right = self.es[1]
             left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
             right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
-            res = BVAnd(left_Smt, right_Smt)
+            if self.flag is None:
+                res = BVAnd(left_Smt, right_Smt)
+            elif self.flag==1:
+                res = BVAnd(left_Smt, BVNot(right_Smt))
+            elif self.flag==0:
+                res = BVAnd(BVNot(left_Smt), (right_Smt))
         elif self.op == "or":
             left = self.es[0]
             right = self.es[1]
             left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
             right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
-            res = BVOr(left_Smt, right_Smt)
+            if self.flag is None:
+                res = BVOr(left_Smt, right_Smt)
+            elif self.flag == 1:
+                res = BVOr(left_Smt, BVNot(right_Smt))
+            elif self.flag == 0:
+                res = BVOr(BVNot(left_Smt), (right_Smt))
         elif self.op == "add":
             left = self.es[0]
             right = self.es[1]
@@ -586,14 +622,93 @@ class UifExp(expType):
             res = BVExtract(subExp_Smt, 0, 0)
             for i in range(1, len):
                 res = BVOr(res, BVExtract(subExp_Smt, i, i))
-        elif self.op == "ult":
+        elif self.op == "ult" or self.op == 'slt':
             left = self.es[0]
             right = self.es[1]
             left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
             right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
             res = Ite(BVULT(left_Smt, right_Smt), BV(1, 1), BV(0, 1))
+        elif self.op == 'xor':
+            left = self.es[0]
+            right = self.es[1]
+            left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
+            right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
+            res = BVXor(left_Smt, right_Smt)
+        elif self.op == 'xnor':
+            left = self.es[0]
+            right = self.es[1]
+            left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
+            right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
+            res = BVNot(BVXor(left_Smt, right_Smt))
+        elif self.op == 'sub':
+            left = self.es[0]
+            right = self.es[1]
+            left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
+            right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
+            res = BVSub(left_Smt, right_Smt)
+        elif self.op == 'mul':
+            left = self.es[0]
+            right = self.es[1]
+            left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
+            right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
+            res = BVMul(left_Smt, right_Smt)
+        elif self.op == 'redand':
+            subExp = self.es[0]
+            subExp_Smt = visited[subExp.id] if subExp.id in visited else subExp.toPySmt(sort_map, visited)
+            len = sort_map[subExp.sortId].bv_or_arr.len
+            res = BVExtract(subExp_Smt, 0, 0)
+            for i in range(1, len):
+                res = BVAnd(res, BVExtract(subExp_Smt, i, i))
+        elif self.op == "ulte":
+            left = self.es[0]
+            right = self.es[1]
+            left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
+            right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
+            res = Ite(Or(BVULT(left_Smt, right_Smt),EqualsOrIff(left_Smt,right_Smt)), BV(1, 1), BV(0, 1))
+        elif self.op == "srl":
+            left = self.es[0]
+            right = self.es[1]
+            left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
+            right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
+            res = BVLShr(left_Smt,right_Smt)
+        elif self.op == "sll":
+            left = self.es[0]
+            right = self.es[1]
+            left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
+            right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
+            res = BVLShl(left_Smt,right_Smt)
+        elif self.op == 'ugt':
+            left = self.es[0]
+            right = self.es[1]
+            left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
+            right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
+            res = Ite(BVUGT(left_Smt, right_Smt), BV(1, 1), BV(0, 1))
+        elif self.op == 'ugte':
+            left = self.es[0]
+            right = self.es[1]
+            left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
+            right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
+            res = Ite(Or(BVUGT(left_Smt, right_Smt),EqualsOrIff(left_Smt,right_Smt)), BV(1, 1), BV(0, 1))
+        elif self.op == "neq":
+            left = self.es[0]
+            right = self.es[1]
+            left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
+            right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
+            res = Ite(Equals(left_Smt, right_Smt), BV(0, 1), BV(1, 1))
+        elif self.op == "sra":
+            left = self.es[0]
+            right = self.es[1]
+            left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
+            right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
+            res = BVAShr(left_Smt,right_Smt)
+        elif self.op == "srem":
+            left = self.es[0]
+            right = self.es[1]
+            left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
+            right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
+            res = BVSRem(left_Smt,right_Smt)
         else:
-            assert "not support"
+            print(self.op+' unkonwn')
         visited[self.id] = res
         return res
 
@@ -722,12 +837,13 @@ class ReadExp(expType):
 
 
 class IteExp(expType):
-    def __init__(self, sortId, b, e1, e2, id):
+    def __init__(self, sortId, b, e1, e2, id, flag=None):
         self.sortId = sortId
         self.b = b
         self.e1 = e1
         self.e2 = e2
         self.id = id
+        self.flag=flag #负数判定
 
     def __str__(self):
 
@@ -750,7 +866,14 @@ class IteExp(expType):
             b_Smt = visited[self.b.id] if self.b.id in visited else self.b.toPySmt(sort_map, visited)
             e1_Smt = visited[self.e1.id] if self.e1.id in visited else self.e1.toPySmt(sort_map, visited)
             e2_Smt = visited[self.e2.id] if self.e2.id in visited else self.e2.toPySmt(sort_map, visited)
-            res = Ite(Equals(b_Smt, BV(1, 1)), e1_Smt, e2_Smt)
+            if self.flag is None:
+                res = Ite(Equals(b_Smt, BV(1, 1)), e1_Smt, e2_Smt)
+            elif self.flag == 0:
+                res = Ite(Equals(BVNot(b_Smt), BV(1, 1)), e1_Smt, e2_Smt)
+            elif self.flag == 1:
+                res = Ite(Equals((b_Smt), BV(1, 1)), BVNot(e1_Smt), e2_Smt)
+            elif self.flag == 2:
+                res = Ite(Equals((b_Smt), BV(1, 1)), e1_Smt, BVNot(e2_Smt))
         visited[self.id] = res
         return res
 
@@ -858,16 +981,21 @@ class Init():
 
 
 class Statement():
-    def __init__(self, nid: INT, exp: expType):
+    def __init__(self, nid: INT, exp: expType, flag=None):
         self.nid = nid
         self.exp = exp
+        self.flag = flag
 
     def __str__(self):
         return "(next %s : %s)" % (str(self.nid), str(self.exp))
 
     def toPySmt(self,exp_map, sort_map, visited):
-        return next_var(exp_map[self.nid].toPySmt(sort_map, visited)).Equals(
-            self.exp.toPySmt(sort_map, visited))
+        if self.flag is None:
+            return next_var(exp_map[self.nid].toPySmt(sort_map, visited)).Equals(
+                self.exp.toPySmt(sort_map, visited))
+        else:
+            return next_var(exp_map[self.nid].toPySmt(sort_map, visited)).Equals(
+                BVNot(self.exp.toPySmt(sort_map, visited)))
 
 
 class PropertyEnum(Enum):
@@ -939,7 +1067,10 @@ class Btor2():
         # nextDict
         for node in self.node_map.values():
             if isinstance(node, NextKind):
-                self.nextStatement_map[node.nodeID.id] = Statement(node.curnid, self.exp_map[node.prenid])
+                if node.prenid<0:
+                    self.nextStatement_map[node.nodeID.id] = Statement(node.curnid, self.exp_map[-node.prenid],True)
+                else:
+                    self.nextStatement_map[node.nodeID.id] = Statement(node.curnid, self.exp_map[node.prenid])
 
         '''
             我定义PySmt迁移系统需要的
@@ -989,8 +1120,16 @@ class Btor2():
                 badstates.append(prop.toPySmt(self.sort_map, {}))
 
         # return TransitionSystem(vars, And(inits), nexts[7]), constraints, badstates
-        return TransitionSystem(vars, And(inits), And(nexts)), constraints, badstates
+        return TransitionSystem(vars, And(inits), And(nexts)), constraints, badstates[0]
 
+    def get_var_from_id(self,id):
+        return self.var_map[id]
+
+    def get_vars(self):
+        vars = {}
+        for varExp in self.var_map.values():
+            vars[varExp.name]=(varExp.toPySmt(self.sort_map, {}))
+        return vars
     '''
     学长需要的update
     '''

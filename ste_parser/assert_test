@@ -1,6 +1,29 @@
-node1 is 12 and
-node2 is 13 and
-guard0 -> node4 is 3
+rst_n is 0 and
+
+N rst_n is 1 and
+N in_wr is 1 and
+N in_rd is 0 and
+N in_data is data1 and
+N in_wr_addr is addr1 and
+
+N N rst_n is 1 and
+N N in_wr is 0 and
+N N in_rd is 1 and
+N N in_rd_addr is addr1 and
+
+N N N rst_n is 1 and
+N N N in_wr is 1 and
+N N N in_rd is 0 and
+N N N in_data is data2 and
+N N N in_wr_addr is addr2 and
+
+N N N N rst_n is 1 and
+N N N N in_wr is 0 and
+N N N N in_rd is 1 and
+N N N N in_rd_addr is addr2
+
+
 ==>
-N N node1 is 32 and
-N N node2 is 2
+
+N N N out_data is data1 and
+N N N N N out_data is data2

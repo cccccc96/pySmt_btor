@@ -55,7 +55,7 @@
 43 or 1 41 42
 44 constraint 43      ; !rst_n，即 ~rst_n == 1'b1
 
-45 state 1
+45 state 1 random_addr
 46 next 1 45 45
 47 uext 1 45 0 random_addr ; uext ...
 48 state 1 random_data ; 声明了random_addr、random_data

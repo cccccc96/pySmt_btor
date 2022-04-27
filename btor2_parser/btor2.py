@@ -151,23 +151,6 @@ class consthType(inputType):
         return isinstance(other, consthType) and self.sortId == other.sortId and self.val == other.val
 
 
-class indOpEnum(Enum):
-    SliceOp = 0
-    Uext = 1
-    Sext = 2
-
-
-class opEnum(Enum):
-    Add = 0
-    Sub = 1
-    Neg = 2
-    Inc = 3
-    Dec = 4
-    ReadOp = 5
-    WriteOp = 6
-    IteOp = 7
-
-
 class nodeType:
     pass
 
@@ -325,7 +308,6 @@ class OpKind(nodeType):
             content = node_exp_map[opdNids[2]]
             node_exp_map[self.nodeID.id] = StoreExp(sortId, mem, adr, content, self.nodeID.id)
         else:
-
             sortId = self.sid
             opdNids = self.opdNids
             es = [node_exp_map[opdNids[0]]]
@@ -856,16 +838,21 @@ class Init():
 
 
 class Statement():
-    def __init__(self, nid: INT, exp: expType):
+    def __init__(self, nid: INT, exp: expType, flag=None):
         self.nid = nid
         self.exp = exp
+        self.flag = True
 
     def __str__(self):
         return "(next %s : %s)" % (str(self.nid), str(self.exp))
 
     def toPySmt(self,exp_map, sort_map, visited):
-        return next_var(exp_map[self.nid].toPySmt(sort_map, visited)).Equals(
+        if self.flag is None:
+            return next_var(exp_map[self.nid].toPySmt(sort_map, visited)).Equals(
             self.exp.toPySmt(sort_map, visited))
+        else:
+            return next_var(exp_map[self.nid].toPySmt(sort_map, visited)).Equals(
+                BVNot(self.exp.toPySmt(sort_map, visited)))
 
 
 class PropertyEnum(Enum):
@@ -994,6 +981,8 @@ class Btor2():
         for varExp in self.var_map.values():
             vars[varExp.name]=(varExp.toPySmt(self.sort_map, {}))
         return vars
+
+
     '''
     学长需要的update
     '''

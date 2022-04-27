@@ -9,7 +9,7 @@ grammar = r"""
 
     uint: UINT                                      
 
-    symbol: CNAME                                  
+    symbol: STRING                                  
 
     nid: num                                      
 
@@ -17,7 +17,8 @@ grammar = r"""
 
     const: "const" sid UINT                        
 
-    constd: "constd" sid ["-"] uint                 
+    constd: "constd" sid  uint                      ->constd  
+            | "constd" sid "-" uint               ->negative_constd  
 
     consth: "consth" sid CNAME
 
@@ -60,26 +61,27 @@ grammar = r"""
 
     COMMENT.2: ";" /[^\n]*/
     WHITESPACE.2: /[ \t\f]/+ 
-    OP.2: "not" 
-        | "inc" | "dec" | "neg" 
+    OP.2: "not " 
+        | "inc" | "dec " | "neg" 
         | "redand" | "redor" | "redxor"
         | "iff" | "implies" 
         | "eq" | "neq" 
         | "sgt" | "ugt" | "sgte" | "ugte" | "slt" | "ult" | "slte" | "ulte"
         | "and" | "nand" | "nor" | "or" | "xnor" | "xor"
         | "rol" | "ror" | "sll" | "sra" | "srl"
-        | "add" | "mul" | "sdiv" | "udiv" | "smod" | "srem" | "urem" |"sub"
+        | "add" | "mul" | "sdiv" | "udiv" | "smod" | "srem" | "urem" |"sub "
         | "saddo" | "uaddo" | "sdivo" | "udivo" | "smulo" | "umulo" | "ssubo" | "usubo"
         | "concat"
         | "read"
-        | "ite"
+        | "ite "
         | "write"
     OPIDX.2: "sext" | "uext" | "slice"
     BCFO.2: "bad" | "constraint" | "fair" | "output"
     INT: DIGIT+
     UINT.2: INT | "-" INT
+    STRING:  ("-"|":"|"["|"]"|"["|"$"|"/"|"\\"|"."|"_"|LETTER) ("-"|":"|"["|"]"|"["|"$"|"/"|"\\"|"."|"_"|LETTER|DIGIT)*
 
-
+    %import common.LETTER
     %import common.NEWLINE
     %import common.CNAME
     %import common.WS
@@ -123,7 +125,10 @@ class BtorTransformer(Transformer):
 
     # cosnt.uint 十进制返回str类型
     def constd(self, sid, uint):
-        return [sid, str(uint)]
+        return [sid, "{0:b}".format(uint)]
+
+    def negative_constd(self, sid, uint):
+        return [sid, '-'+str(uint)]
 
     # const.val 十六进制返回str类型
     def consth(self, sid, val):
@@ -161,10 +166,10 @@ class BtorTransformer(Transformer):
         return btor2.ArrayType(len, ele_typ)
 
     def op(self, name):
-        return str(name)
+        return str(name).replace(' ','')
 
     def opidx(self, name):
-        return str(name)
+        return str(name).replace(' ','')
 
     def node_sort(self, sort0, bv_or_arr):
         return btor2.SortKind(sort0, bv_or_arr)

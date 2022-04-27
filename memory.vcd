@@ -1,0 +1,82 @@
+$date 2022-04-12 11:58:40.903992 $end
+$timescale 1 us $end
+$scope module memory $end
+$var reg 10 ! mem[0] $end
+$var reg 10 " mem[1] $end
+$var reg 10 # mem[2] $end
+$var reg 10 $ mem[3] $end
+$var reg 10 % mem[4] $end
+$var reg 10 & mem[5] $end
+$var reg 10 ' mem[6] $end
+$var reg 10 ( mem[7] $end
+$var reg 10 ) mem[8] $end
+$var reg 10 * mem[9] $end
+$var reg 10 + mem[10] $end
+$var reg 10 , mem[11] $end
+$var reg 10 - mem[12] $end
+$var reg 10 . mem[13] $end
+$var reg 10 / mem[14] $end
+$var reg 10 0 mem[15] $end
+$var wire 10 1 clk $end
+$var wire 10 2 flag $end
+$var wire 10 3 in_data $end
+$var wire 10 4 in_rd $end
+$var wire 10 5 in_rd_addr $end
+$var wire 10 6 in_wr $end
+$var wire 10 7 in_wr_addr $end
+$var wire 10 8 rst_n $end
+$var wire 10 9 out_data $end
+$var reg 10 : flag_fail $end
+$var reg 10 ; random_data_fail $end
+$upscope $end
+$enddefinitions $end
+#0
+$dumpvars
+b0 !
+b0 "
+b0 #
+b0 $
+b0 %
+b0 &
+b0 '
+b0 (
+b0 )
+b0 *
+b0 +
+b0 ,
+b0 -
+b0 .
+b0 /
+b0 0
+b0 1
+b0 2
+b0 3
+b0 4
+b0 5
+b1 6
+b0 7
+b0 8
+b0 9
+b0 :
+b0 ;
+$end
+#1
+b1 2
+b10000000 3
+b111 7
+b1 8
+#2
+b10000000 (
+b0 3
+b0 7
+b1000 ;
+#3
+b0 2
+b1 4
+b0 6
+b0 8
+#4
+b0 (
+b0 4
+b1 6
+b0 ;

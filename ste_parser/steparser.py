@@ -1,13 +1,16 @@
 from lark import Lark, Transformer, v_args, exceptions
-import trajForm
+from ste_parser import trajForm
 
 
 grammar = r"""
 
-    trajectory : CNAME "is" INT                                            -> trajbv
-                | trajectory "and" trajectory                               -> trajand
-                | CNAME "->" trajectory                                     -> trajguard
-                | "N" trajectory                                              -> trajnext
+    trajectory_ : CNAME "is" INT                                             -> trajbv
+                | CNAME "is" CNAME                                          -> trajvar
+                | CNAME "->" trajectory_                                     -> trajguard
+                | "N" trajectory_                                            -> trajnext
+    
+    trajectory : trajectory_                                                 -> trajtraj
+                | trajectory "and" trajectory                                -> trajand
             
     ants: trajectory
     
@@ -35,6 +38,9 @@ class SteTransformer(Transformer):
     def trajbv(self, node, val):
         return trajForm.TrajIsBV(str(node),int(val))
 
+    def trajvar(self, node, var):
+        return trajForm.TrajIsVar(str(node),str(var))
+
     def trajand(self, left, right):
         return trajForm.TrajAnd(left , right)
 
@@ -43,6 +49,9 @@ class SteTransformer(Transformer):
 
     def trajnext(self, f):
         return trajForm.TrajNext(f)
+
+    def trajtraj(self, traj):
+        return traj
 
     def ants(self, ant):
         return ant
@@ -60,6 +69,3 @@ def parse_file(filename):
     with open(filename, "r") as f:
         return ste_parser.parse(f.read())
 
-if __name__ == "__main__":
-    prot = parse_file("assert_test")
-    print(prot)

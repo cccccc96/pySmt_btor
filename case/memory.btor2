@@ -7,7 +7,7 @@
 6 input 1 in_rd_addr ; memory.sv:8.23-8.33
 7 input 1 in_wr ; memory.sv:4.11-4.16
 8 input 1 in_wr_addr ; memory.sv:7.23-7.33
-9 input 1 rst ; memory.sv:3.11-3.16
+9 input 1 rst_n ; memory.sv:3.11-3.16
 10 state 1
 11 output 10 out_data ; memory.sv:9.28-9.36
 12 state 1
@@ -43,7 +43,7 @@
 42 not 1 31
 43 or 1 41 42
 44 constraint 43
-45 state 1
+45 state 1 random_addr
 46 next 1 45 45
 47 uext 1 45 0 random_addr ; memory.sv:47.32-47.43
 48 state 1 random_data
