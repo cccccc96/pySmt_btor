@@ -1,4 +1,4 @@
-from btor_parser.btor2parser import *
+from btor2_parser.btor2parser import *
 
 
 

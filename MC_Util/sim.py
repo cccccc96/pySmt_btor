@@ -1,5 +1,5 @@
-from btor_parser.btor2parser import *
-from btor_parser.btor2 import *
+from btor2_parser.btor2parser import *
+from btor2_parser.btor2 import *
 
 
 def next_var(v):

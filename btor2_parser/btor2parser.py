@@ -1,7 +1,7 @@
 from lark import Lark, Transformer, v_args, exceptions
 
 from MC_Util.bmc import *
-from btor_parser import btor2
+from btor2_parser import btor2
 
 grammar = r"""
 
