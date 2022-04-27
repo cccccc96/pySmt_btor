@@ -4,7 +4,7 @@ from btor_parser import btor2parser
 from ste_parser import  steparser
 from MC_Util.bmc import *
 
-
+idx=-10
 
 def test_preExp():
     prot = btor2parser.parse_file("case/memory.btor2")
@@ -97,6 +97,7 @@ def test_simplified_ite():
     遍历2^n种情况
     '''
     def _f(ite_exp, innner_ite_list, b_map, res, i):
+        global idx
         if i == len(inner_ite_list):
             simplified_ite_exp = ite_exp.simplified_ite({}, b_map)
             print('ite赋值：')
@@ -106,36 +107,35 @@ def test_simplified_ite():
             print('简化后的Exp调用toPySmt：')
             print(serialize(simplified_ite_exp.toPySmt(prot.sort_map, {})))
             print('---------------------------')
-            idx = -10
+            # 计算condition，把b_map全部与起来
             condition = None
-            print(b_map)
             for i in b_map:
                 if condition is None:
-                    if b_map[i].val == '0':
-                        condition = UifExp(1,'not',[prot.exp_map[i]],idx)
+                    if b_map[i] == 0:
+                        condition = (UifExp(1,'not',[prot.exp_map[i]],idx))
                         idx -= 1
-                    elif b_map[i].val == '1':
+                    elif b_map[i] == 1:
                         condition = prot.exp_map[i]
                 else:
-                    if b_map[i].val == '0':
+                    if b_map[i] == 0:
                         left = condition
                         right = UifExp(1,'not',[prot.exp_map[i]],idx)
                         idx-=1
                         condition = UifExp(1,'and',[left,right],idx)
                         idx -= 1
-                    elif b_map[i].val == '1':
+                    elif b_map[i] == 1:
                         left = condition
                         right = prot.exp_map[i]
                         condition = UifExp(1, 'and',[left,right],idx)
                         idx-=1
+            print(condition)
             x = UifExp(1,'and',[condition,simplified_ite_exp],idx)
             idx-=1
-            x = UifExp(1,'not',[x],idx)
             res.append(x)
             return
-        b_map[innner_ite_list[i]] = ConstExp(1, '0', -1)
+        b_map[innner_ite_list[i]] = 0
         _f(ite_exp, innner_ite_list, b_map, res, i + 1)
-        b_map[innner_ite_list[i]] = ConstExp(1, '1', -1)
+        b_map[innner_ite_list[i]] = 1
         _f(ite_exp, innner_ite_list, b_map, res, i + 1)
 
     prot = btor2parser.parse_file("case/memory.btor2")
@@ -158,6 +158,13 @@ def test_simplified_ite():
         return
     res = []
     _f(ite_exp, inner_ite_list, {}, res, 0)
+    print(idx)
+    for i in range(len(res)):
+        res[i]=res[i].toPySmt(prot.sort_map, {})
+    simpliedite = BVOr(res[0],res[1])
+    for i in range(2,len(res)):
+        simpliedite = BVOr(simpliedite,res[i])
+    print(simplify(simpliedite))
     # print('\n！（c1/\e1）应该恒为1 ： ')
     # print(res[0])
     # # print(serialize(simplify(res[1].toPySmt(prot.sort_map, {}))))

@@ -887,11 +887,9 @@ class IteExp(expType):
         b = b_map[self.b.id]
         e1 = visited[self.e1.id] if self.e1.id in visited else self.e1.simplified_ite(visited, b_map)
         e2 = visited[self.e2.id] if self.e2.id in visited else self.e2.simplified_ite(visited, b_map)
-        # visited[self.id] = IteExp(self.sortId, b, e1, e2, self.id)
-        # return IteExp(self.sortId, b, e1, e2, self.id)
-        if b.val == '1':
+        if b == 1:
             res = e1
-        elif b.val =='0':
+        elif b ==0:
             res = e2
         visited[self.id] = res
         return res
