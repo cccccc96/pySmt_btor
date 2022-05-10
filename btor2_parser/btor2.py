@@ -4,7 +4,6 @@ from pysmt.shortcuts import *
 from pysmt.typing import *
 from MC_Util.PySmtUtil import next_var, TransitionSystem
 
-
 # def indent(s, num_space, first_line=None):
 #     lines = s.split('\n')
 #     if first_line is None:
@@ -14,6 +13,7 @@ from MC_Util.PySmtUtil import next_var, TransitionSystem
 #         if len(lines) > 1:
 #             res += '\n' + '\n'.join(' ' * num_space + line for line in lines[1:])
 #         return res
+idx = 1000
 
 
 class SortType:
@@ -187,7 +187,7 @@ class SortKind(nodeType):
     def __eq__(self, other):
         return isinstance(other, SortKind) and self.nodeID == other.nodeID
 
-    def toPySmt(self,sort_map, visited):
+    def toPySmt(self, sort_map, visited):
         if isinstance(self.bv_or_arr, bvType):
             visited[self.nodeID.id] = BVType(self.bv_or_arr.len)
             return BVType(self.bv_or_arr.len)
@@ -290,21 +290,21 @@ class OpKind(nodeType):
         self.sid = sid
         self.opT = opT
         self.opdNids = opdNids
-        self.flag=None
+        self.flag = None
 
         # 判定and中的负数情况（beem例子）
-        if self.opdNids[1] is not None and self.opdNids[1]<0:
+        if self.opdNids[1] is not None and self.opdNids[1] < 0:
             self.opdNids = list(self.opdNids)
-            self.opdNids[1]=-self.opdNids[1]
-            self.flag=1
-        if self.opdNids[0] is not None and self.opdNids[0]<0:
+            self.opdNids[1] = -self.opdNids[1]
+            self.flag = 1
+        if self.opdNids[0] is not None and self.opdNids[0] < 0:
             self.opdNids = list(self.opdNids)
-            self.opdNids[0]=-self.opdNids[0]
-            self.flag=0
-        if self.opdNids[2] is not None and self.opdNids[2]<0:
+            self.opdNids[0] = -self.opdNids[0]
+            self.flag = 0
+        if self.opdNids[2] is not None and self.opdNids[2] < 0:
             self.opdNids = list(self.opdNids)
-            self.opdNids[2]=-self.opdNids[2]
-            self.flag=2
+            self.opdNids[2] = -self.opdNids[2]
+            self.flag = 2
 
     def __str__(self):
         return "OpNode %s(%s): %s @%s" % (str(self.opT), self.opdNids, self.sid, str(self.nodeID))
@@ -348,7 +348,7 @@ class OpKind(nodeType):
                 es.append(node_exp_map[opdNids[1]])
             if opdNids[2] is not None:
                 es.append(node_exp_map[opdNids[2]])
-            node_exp_map[self.nodeID.id] = UifExp(sortId, self.opT, es, self.nodeID.id,self.flag)
+            node_exp_map[self.nodeID.id] = UifExp(sortId, self.opT, es, self.nodeID.id, self.flag)
         return node_exp_map
 
 
@@ -503,7 +503,7 @@ class VarExp(expType):
     def simplified_ite(self, visited, b_map):
         return self
 
-    def get_inner_ites(self, ite_list,visited):
+    def get_inner_ites(self, ite_list, visited):
         return
 
 
@@ -537,21 +537,21 @@ class InputExp(expType):
     def simplified_ite(self, visited, b_map):
         return self
 
-    def get_inner_ites(self, ite_list,visited):
+    def get_inner_ites(self, ite_list, visited):
         return
 
 
 class UifExp(expType):
-    def __init__(self, sortId, op, es, id,flag=None):
+    def __init__(self, sortId, op, es, id, flag=None):
         self.sortId = sortId
         self.op = op
         self.es = es
         self.id = id
-        self.flag=flag #判定有无负数
+        self.flag = flag  # 判定有无负数
 
     def __str__(self):
-        if(self.op=='and'):
-            return '(' +str(self.es[0]) + '&'+ str(self.es[1]) + ')'
+        if (self.op == 'and'):
+            return '(' + str(self.es[0]) + '&' + str(self.es[1]) + ')'
         if (self.op == 'eq'):
             return '(' + str(self.es[0]) + '=' + str(self.es[1]) + ')'
         if (self.op == 'not'):
@@ -571,8 +571,8 @@ class UifExp(expType):
             right = self.es[1]
             left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
             right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
-            # res = Ite(Equals(left_Smt, right_Smt), BV(1, 1), BV(0, 1))
-            res = BVNot(BVComp(left_Smt,right_Smt))
+            res = Ite(Equals(left_Smt, right_Smt), BV(1, 1), BV(0, 1))
+            # res = BVNot(BVComp(left_Smt,right_Smt))
         elif self.op == "not":
             subExp = self.es[0]
             subExp_Smt = visited[subExp.id] if subExp.id in visited else subExp.toPySmt(sort_map, visited)
@@ -588,9 +588,9 @@ class UifExp(expType):
             right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
             if self.flag is None:
                 res = BVAnd(left_Smt, right_Smt)
-            elif self.flag==1:
+            elif self.flag == 1:
                 res = BVAnd(left_Smt, BVNot(right_Smt))
-            elif self.flag==0:
+            elif self.flag == 0:
                 res = BVAnd(BVNot(left_Smt), (right_Smt))
         elif self.op == "or":
             left = self.es[0]
@@ -665,19 +665,19 @@ class UifExp(expType):
             right = self.es[1]
             left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
             right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
-            res = Ite(Or(BVULT(left_Smt, right_Smt),EqualsOrIff(left_Smt,right_Smt)), BV(1, 1), BV(0, 1))
+            res = Ite(Or(BVULT(left_Smt, right_Smt), EqualsOrIff(left_Smt, right_Smt)), BV(1, 1), BV(0, 1))
         elif self.op == "srl":
             left = self.es[0]
             right = self.es[1]
             left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
             right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
-            res = BVLShr(left_Smt,right_Smt)
+            res = BVLShr(left_Smt, right_Smt)
         elif self.op == "sll":
             left = self.es[0]
             right = self.es[1]
             left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
             right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
-            res = BVLShl(left_Smt,right_Smt)
+            res = BVLShl(left_Smt, right_Smt)
         elif self.op == 'ugt':
             left = self.es[0]
             right = self.es[1]
@@ -689,7 +689,7 @@ class UifExp(expType):
             right = self.es[1]
             left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
             right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
-            res = Ite(Or(BVUGT(left_Smt, right_Smt),EqualsOrIff(left_Smt,right_Smt)), BV(1, 1), BV(0, 1))
+            res = Ite(Or(BVUGT(left_Smt, right_Smt), EqualsOrIff(left_Smt, right_Smt)), BV(1, 1), BV(0, 1))
         elif self.op == "neq":
             left = self.es[0]
             right = self.es[1]
@@ -701,15 +701,15 @@ class UifExp(expType):
             right = self.es[1]
             left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
             right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
-            res = BVAShr(left_Smt,right_Smt)
+            res = BVAShr(left_Smt, right_Smt)
         elif self.op == "srem":
             left = self.es[0]
             right = self.es[1]
             left_Smt = visited[left.id] if left.id in visited else left.toPySmt(sort_map, visited)
             right_Smt = visited[right.id] if right.id in visited else right.toPySmt(sort_map, visited)
-            res = BVSRem(left_Smt,right_Smt)
+            res = BVSRem(left_Smt, right_Smt)
         else:
-            print(self.op+' unkonwn')
+            print(self.op + ' unkonwn')
         visited[self.id] = res
         return res
 
@@ -720,14 +720,16 @@ class UifExp(expType):
         return UifExp(self.sortId, self.op, es, self.id)
 
     def simplified_ite(self, visited, b_map):
+        global idx
         es = []
         for e in self.es:
             if e.id in visited:
                 es.append(visited[e.id])
             else:
                 es.append(e.simplified_ite(visited, b_map))
-        visited[self.id] = UifExp(self.sortId, self.op, es, self.id)
-        return UifExp(self.sortId, self.op, es, self.id)
+        visited[self.id] = UifExp(self.sortId, self.op, es, idx)
+        idx += 1
+        return visited[self.id]
 
     def get_inner_ites(self, ite_list, visited):
         if self.id in visited:
@@ -736,7 +738,6 @@ class UifExp(expType):
             visited.append(self.id)
         for e in self.es:
             e.get_inner_ites(ite_list, visited)
-
 
 
 class UifIndExp(expType):
@@ -781,9 +782,11 @@ class UifIndExp(expType):
         return UifExp(self.sortId, es, self.id, self.opdNats)
 
     def simplified_ite(self, visited, b_map):
+        global idx
         es = visited[self.es.id] if self.es.id in visited else self.es.simplified_ite(visited, b_map)
-        visited[self.id] = UifExp(self.sortId, es, self.id, self.opdNats)
-        return UifExp(self.sortId, es, self.id, self.opdNats)
+        visited[self.id] = UifExp(self.sortId, es, idx, self.opdNats)
+        idx += 1
+        return visited[self.id]
 
     def get_inner_ites(self, ite_list, visited):
         if self.id in visited:
@@ -823,10 +826,12 @@ class ReadExp(expType):
         return ReadExp(self.sortId, mem, adr, self.id)
 
     def simplified_ite(self, visited, b_map):
+        global idx
         mem = visited[self.mem.id] if self.mem.id in visited else self.mem.simplified_ite(visited, b_map)
         adr = visited[self.adr.id] if self.adr.id in visited else self.adr.simplified_ite(visited, b_map)
-        visited[self.id] = ReadExp(self.sortId, mem, adr, self.id)
-        return ReadExp(self.sortId, mem, adr, self.id)
+        visited[self.id] = ReadExp(self.sortId, mem, adr, idx)
+        idx += 1
+        return visited[self.id]
 
     def get_inner_ites(self, ite_list, visited):
         if self.id in visited:
@@ -844,7 +849,7 @@ class IteExp(expType):
         self.e1 = e1
         self.e2 = e2
         self.id = id
-        self.flag=flag #负数判定
+        self.flag = flag  # 负数判定
 
     def __str__(self):
 
@@ -885,12 +890,21 @@ class IteExp(expType):
         return IteExp(self.sortId, b, e1, e2, self.id)
 
     def simplified_ite(self, visited, b_map):
+        if self.b.id not in b_map:
+            global idx
+            b= visited[self.b.id] if self.b.id in visited else self.b.simplified_ite(visited, b_map)
+            e1 = visited[self.e1.id] if self.e1.id in visited else self.e1.simplified_ite(visited, b_map)
+            e2 = visited[self.e2.id] if self.e2.id in visited else self.e2.simplified_ite(visited, b_map)
+            res = IteExp(self.sortId,b,e1,e2,idx,self.flag)
+            visited[self.id] = res
+            idx+=1
+            return res
         b = b_map[self.b.id]
         e1 = visited[self.e1.id] if self.e1.id in visited else self.e1.simplified_ite(visited, b_map)
         e2 = visited[self.e2.id] if self.e2.id in visited else self.e2.simplified_ite(visited, b_map)
         if b == 1:
             res = e1
-        elif b ==0:
+        elif b == 0:
             res = e2
         visited[self.id] = res
         return res
@@ -941,12 +955,14 @@ class StoreExp(expType):
         return StoreExp(self.sortId, mem, adre, content, self.id)
 
     def simplified_ite(self, visited, b_map):
+        global idx
         mem = visited[self.mem.id] if self.mem.id in visited else self.mem.simplified_ite(visited, b_map)
         adre = visited[self.adre.id] if self.adre.id in visited else self.adre.simplified_ite(visited, b_map)
         content = visited[self.content.id] if self.content.id in visited else self.content.simplified_ite(visited,
                                                                                                           b_map)
-        visited[self.id] = StoreExp(self.sortId, mem, adre, content, self.id)
-        return StoreExp(self.sortId, mem, adre, content, self.id)
+        visited[self.id] = StoreExp(self.sortId, mem, adre, content, idx)
+        idx += 1
+        return visited[self.id]
 
     def get_inner_ites(self, ite_list, visited):
         if self.id in visited:
@@ -988,7 +1004,7 @@ class Statement():
     def __str__(self):
         return "(next %s : %s)" % (str(self.nid), str(self.exp))
 
-    def toPySmt(self,exp_map, sort_map, visited):
+    def toPySmt(self, exp_map, sort_map, visited):
         if self.flag is None:
             return next_var(exp_map[self.nid].toPySmt(sort_map, visited)).Equals(
                 self.exp.toPySmt(sort_map, visited))
@@ -1066,8 +1082,8 @@ class Btor2():
         # nextDict
         for node in self.node_map.values():
             if isinstance(node, NextKind):
-                if node.prenid<0:
-                    self.nextStatement_map[node.nodeID.id] = Statement(node.curnid, self.exp_map[-node.prenid],True)
+                if node.prenid < 0:
+                    self.nextStatement_map[node.nodeID.id] = Statement(node.curnid, self.exp_map[-node.prenid], True)
                 else:
                     self.nextStatement_map[node.nodeID.id] = Statement(node.curnid, self.exp_map[node.prenid])
 
@@ -1121,14 +1137,15 @@ class Btor2():
         # return TransitionSystem(vars, And(inits), nexts[7]), constraints, badstates
         return TransitionSystem(vars, And(inits), And(nexts)), constraints, badstates[0]
 
-    def get_var_from_id(self,id):
+    def get_var_from_id(self, id):
         return self.var_map[id]
 
     def get_vars(self):
         vars = {}
         for varExp in self.var_map.values():
-            vars[varExp.name]=(varExp.toPySmt(self.sort_map, {}))
+            vars[varExp.name] = (varExp.toPySmt(self.sort_map, {}))
         return vars
+
     '''
     学长需要的update
     '''
@@ -1141,43 +1158,46 @@ class Btor2():
             res[key] = value
         return res
 
+
     def simplifyIte(self, ite_exp):
-        '''
-        遍历2^n种情况
-        :param ite_exp: 待化简的表达式
-        :param innner_ite_list: ite_exp中的所有ite，用nodeid存成一个list
-        :param b_map: 全排列用的辅助表
-        :param res:结果存在这里
-        :param i:递归深度
-        :return:
-        '''
         def _f(ite_exp, innner_ite_list, b_map, res, i):
+            """
+           遍历2^n种情况
+           :param ite_exp: 待化简的表达式
+           :param innner_ite_list: ite_exp中的所有ite，用nodeid存成一个list
+           :param b_map: 全排列用的辅助表
+           :param res:结果存在这里
+           :param i:递归深度
+           :return:
+           """
             global idx
             if i == len(innner_ite_list):
                 simplified_ite_exp = ite_exp.simplified_ite({}, b_map)
+                simplified_ite_exp.id = idx
+                idx += 1
                 condition = None
                 # 计算一下当前情况的 condition ， 0代表某个inner_ite的b取非，1代表某个inner_ite的b取正
                 for i in b_map:
                     if condition is None:
                         if b_map[i] == 0:
-                            condition = (UifExp(1,'not',[self.exp_map[i]],idx))
-                            idx -= 1
+                            condition = (UifExp(1, 'not', [self.exp_map[i]], idx))
+                            idx += 1
                         elif b_map[i] == 1:
                             condition = self.exp_map[i]
                     else:
                         if b_map[i] == 0:
                             left = condition
-                            right = UifExp(1,'not',[self.exp_map[i]],idx)
-                            idx-=1
-                            condition = UifExp(1,'and',[left,right],idx)
-                            idx -= 1
+                            right = UifExp(1, 'not', [self.exp_map[i]], idx)
+                            idx += 1
+                            condition = UifExp(1, 'and', [left, right], idx)
+                            idx += 1
                         elif b_map[i] == 1:
                             left = condition
                             right = self.exp_map[i]
-                            condition = UifExp(1, 'and',[left,right],idx)
-                            idx-=1
-                x = UifExp(1,'and',[condition,simplified_ite_exp],idx)
-                idx-=1
+                            condition = UifExp(1, 'and', [left, right], idx)
+                            idx += 1
+                x = UifExp(1, 'and', [condition, simplified_ite_exp], idx)
+                idx += 1
                 res.append(x)
                 return
             b_map[innner_ite_list[i]] = 0
@@ -1185,25 +1205,38 @@ class Btor2():
             b_map[innner_ite_list[i]] = 1
             _f(ite_exp, innner_ite_list, b_map, res, i + 1)
 
+        global idx
         inner_ite_list = []
         ite_exp.get_inner_ites(inner_ite_list, [])
+        print('inner')
+        for i in inner_ite_list:
+            print(i,self.exp_map[i])
         inner_ite_list.sort()
         if len(inner_ite_list) == 0:
             print('没有ite')
             return
         res = []
         _f(ite_exp, inner_ite_list, {}, res, 0)
-        # 得到res，即拆出来的2^n种情况
-        for i in range(len(res)):
-            res[i] = res[i].toPySmt(self.sort_map, {})
-        # res或起来，就是化简后的表达式
-        simpliedite = BVOr(res[0], res[1])
-        for i in range(2, len(res)):
-            simpliedite = BVOr(simpliedite, res[i])
-        print('\n计算得到的ite简化结果：//（\'=\'操作会转成一个ite，这个是topysmt的老原因了）\n')
-        print(serialize(simpliedite))
-        print('\n调一下pysmt的simplify方法，去掉0和1这种恒成立的部分：\n')
-        print(simplify(simpliedite))
-        return simplify(simpliedite)
 
-idx = -10
+        print('内部ite个数：' + str(len(inner_ite_list)))
+        not0list = []
+        for i in range(len(res)):
+            print('----')
+            print('f' + str(i))
+            item = res[i]
+            print(serialize(simplify(item.toPySmt(self.sort_map, {}))).replace(' ? 1_1 : 0_1', ''))
+            solver = Solver()
+            if (is_sat(simplify(item.toPySmt(self.sort_map, {})).Equals(BV(1, 1)))):
+                not0list.append(i)
+        print('不为0的fi：')
+        print(not0list)
+
+        print('----')
+        simpliedite = UifExp(1, 'or', [res[0], res[1]], idx)
+        idx += 1
+        for i in range(2, len(res)):
+            simpliedite = UifExp(1, 'or', [simpliedite, res[i]], idx)
+            idx += 1
+        test = simpliedite.toPySmt(self.sort_map, {})
+        # 返回f1\/f2...\/fn 和 [f1,f2,...,fn]
+        return simpliedite, res
