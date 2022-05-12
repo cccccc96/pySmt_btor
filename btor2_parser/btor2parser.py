@@ -1,6 +1,6 @@
 from lark import Lark, Transformer, v_args
 
-import btor2
+from btor2_parser import btor2
 
 grammar = r"""
 

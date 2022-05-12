@@ -6,7 +6,7 @@ curPath = os.path.abspath(os.path.dirname(__file__))
 rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
 
-import btor2parser
+from btor2_parser import btor2parser
 from MC_Util.bmc import *
 from  pysmt.shortcuts import *
 import sys

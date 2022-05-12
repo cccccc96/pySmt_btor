@@ -3,7 +3,7 @@ from pysmt import shortcuts
 from pysmt.shortcuts import *
 from pysmt.typing import *
 from MC_Util.PySmtUtil import next_var
-from btor2Mgr import Btor2Mgr
+from btor2_parser.btor2Mgr import Btor2Mgr
 
 idx = 1000
 
@@ -719,8 +719,7 @@ class UifExp(expType):
                 es.append(visited[e.id])
             else:
                 es.append(e.simplified_ite(visited, b_map))
-        visited[self.id] = UifExp(self.sortId, self.op, es, idx)
-        idx += 1
+        visited[self.id] = expType.btor2Mgr.createUifExp(self.sortId, self.op, es)
         return visited[self.id]
 
     def get_inner_ites(self, ite_list, visited):
@@ -776,8 +775,7 @@ class UifIndExp(expType):
     def simplified_ite(self, visited, b_map):
         global idx
         es = visited[self.es.id] if self.es.id in visited else self.es.simplified_ite(visited, b_map)
-        visited[self.id] = UifExp(self.sortId, es, idx, self.opdNats)
-        idx += 1
+        visited[self.id] = expType.btor2Mgr.createUifIndExp(self.sortId, self.op, es, self.opdNats)
         return visited[self.id]
 
     def get_inner_ites(self, ite_list, visited):
@@ -806,8 +804,11 @@ class ReadExp(expType):
                           ReadExp) and self.sortId == other.sortId and self.mem == other.mem and self.id == other.id and self.adr == other.adr
 
     def toPySmt(self, sort_map, visited):
+        print(self.mem.id)
         mem_Smt = visited[self.mem.id] if self.mem.id in visited else self.mem.toPySmt(sort_map, visited)
         adr_Smt = visited[self.adr.id] if self.adr.id in visited else self.adr.toPySmt(sort_map, visited)
+        print(serialize(mem_Smt))
+        print(adr_Smt)
         res = Select(mem_Smt, adr_Smt)
         visited[self.id] = res
         return res
@@ -821,8 +822,7 @@ class ReadExp(expType):
         global idx
         mem = visited[self.mem.id] if self.mem.id in visited else self.mem.simplified_ite(visited, b_map)
         adr = visited[self.adr.id] if self.adr.id in visited else self.adr.simplified_ite(visited, b_map)
-        visited[self.id] = ReadExp(self.sortId, mem, adr, idx)
-        idx += 1
+        visited[self.id] = expType.btor2Mgr.createReadExp(self.sortId,mem,adr)
         return visited[self.id]
 
     def get_inner_ites(self, ite_list, visited):
@@ -886,8 +886,7 @@ class IteExp(expType):
             global idx
             e1 = visited[self.e1.id] if self.e1.id in visited else self.e1.simplified_ite(visited, b_map)
             e2 = visited[self.e2.id] if self.e2.id in visited else self.e2.simplified_ite(visited, b_map)
-            res = IteExp(self.sortId,self.b,e1,e2,idx,self.flag)
-            idx+=1
+            res = expType.btor2Mgr.createIteExp(self.sortId,self.b,e1,e2,self.flag)
             return res
         b = b_map[self.b.id]
         e1 = visited[self.e1.id] if self.e1.id in visited else self.e1.simplified_ite(visited, b_map)

@@ -1,6 +1,6 @@
 from MC_Util.invbmc import *
 from MC_Util.sim import *
-import btor2parser
+from btor2_parser import btor2parser
 from ste_parser import steparser
 from MC_Util.bmc import *
 from itebdd.IteBddMgr import *
@@ -118,6 +118,7 @@ def test_simplified_ite():
     print('---------------------------')
     res2,list = prot.simplifyIte(pre)
     print('第二次化简')
+    print(res2)
     print(serialize(simplify(res2.toPySmt(prot.sort_map, {}))).replace(' ? 1_1 : 0_1',''))
 
     print('---------------------------')
@@ -128,7 +129,7 @@ def test_simplified_ite():
     print('---------------------------')
     res3,list = prot.simplifyIte(pre)
     print('第三次化简')
-    # print(serialize(simplify(res3.toPySmt(prot.sort_map, {}))).replace(' ? 1_1 : 0_1',''))
+    print(serialize(simplify(res3.toPySmt(prot.sort_map, {}))).replace(' ? 1_1 : 0_1',''))
 
 
 def test_assert():

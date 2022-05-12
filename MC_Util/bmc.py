@@ -1,4 +1,4 @@
-from btor2 import *
+from btor2_parser.btor2 import *
 from pysmt.shortcuts import *
 from MC_Util.vcdGen import *
 from pysmt.smtlib.script import smtlibscript_from_formula

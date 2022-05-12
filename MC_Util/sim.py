@@ -1,4 +1,4 @@
-from btor2 import *
+from btor2_parser.btor2 import *
 
 
 def next_var(v):

@@ -1,13 +1,15 @@
-import btor2
+from btor2_parser import btor2
 from pysmt.shortcuts import *
 from MC_Util.PySmtUtil import *
 
-idx=2000
+idx=10000
 
 class Btor2Mgr():
     ref = 0
 
     def __init__(self, lines):
+        btor2.expType.btor2Mgr= self
+
         '''
         语法分析
         '''
@@ -109,6 +111,31 @@ class Btor2Mgr():
             res[key] = value
         return res
 
+    def createUifExp(self, sortId, op, es):
+        Btor2Mgr.ref+=1
+        self.exp_map[Btor2Mgr.ref]=btor2.UifExp(sortId, op, es, Btor2Mgr.ref)
+        return self.exp_map[Btor2Mgr.ref]
+
+    def createUifIndExp(self, sortId,op, es, opdNats):
+        Btor2Mgr.ref+=1
+        self.exp_map[Btor2Mgr.ref]= btor2.UifIndExp(sortId, op, es, Btor2Mgr.ref, opdNats)
+        return self.exp_map[Btor2Mgr.ref]
+
+    def createReadExp(self, sortId, mem, adr):
+        Btor2Mgr.ref += 1
+        self.exp_map[Btor2Mgr.ref] = btor2.ReadExp(sortId, mem,adr,Btor2Mgr.ref)
+        return self.exp_map[Btor2Mgr.ref]
+
+    def createIteExp(self, sortId,b,e1,e2,flag):
+        Btor2Mgr.ref += 1
+        self.exp_map[Btor2Mgr.ref] = btor2.IteExp(sortId,b,e1,e2,Btor2Mgr.ref,flag)
+        return self.exp_map[Btor2Mgr.ref]
+
+    def createStoteExp(self, sortId, mem, adre, content):
+        Btor2Mgr.ref += 1
+        self.exp_map[Btor2Mgr.ref] = btor2.StoreExp(sortId, mem, adre,content, Btor2Mgr.ref)
+        return self.exp_map[Btor2Mgr.ref]
+
     def simplifyIte(self, ite_exp):
         def _f(ite_exp, innner_ite_list, b_map, res, i):
             """
@@ -120,34 +147,26 @@ class Btor2Mgr():
            :param i:递归深度
            :return:
            """
-            global idx
             if i == len(innner_ite_list):
                 simplified_ite_exp = ite_exp.simplified_ite({}, b_map)
-                simplified_ite_exp.id = idx
-                idx += 1
                 condition = None
                 # 计算一下当前情况的 condition ， 0代表某个inner_ite的b取非，1代表某个inner_ite的b取正
                 for i in b_map:
                     if condition is None:
                         if b_map[i] == 0:
-                            condition = (btor2.UifExp(1, 'not', [self.exp_map[i]], idx))
-                            idx += 1
+                            condition = self.createUifExp(1, 'not', [self.exp_map[i]])
                         elif b_map[i] == 1:
                             condition = self.exp_map[i]
                     else:
                         if b_map[i] == 0:
                             left = condition
-                            right = btor2.UifExp(1, 'not', [self.exp_map[i]], idx)
-                            idx += 1
-                            condition = btor2.UifExp(1, 'and', [left, right], idx)
-                            idx += 1
+                            right = self.createUifExp(1, 'not', [self.exp_map[i]])
+                            condition = self.createUifExp(1, 'and', [left, right])
                         elif b_map[i] == 1:
                             left = condition
                             right = self.exp_map[i]
-                            condition = btor2.UifExp(1, 'and', [left, right], idx)
-                            idx += 1
-                x = btor2.UifExp(1, 'and', [condition, simplified_ite_exp], idx)
-                idx += 1
+                            condition = self.createUifExp(1, 'and', [left, right])
+                x = self.createUifExp(1, 'and', [condition, simplified_ite_exp])
                 res.append(x)
                 return
             b_map[innner_ite_list[i]] = 0
@@ -182,12 +201,9 @@ class Btor2Mgr():
         print(not0list)
 
         print('----')
-        simpliedite = btor2.UifExp(1, 'or', [res[0], res[1]], idx)
-        idx += 1
+        simpliedite = self.createUifExp(1, 'or', [res[0], res[1]])
         for i in range(2, len(res)):
-            simpliedite = btor2.UifExp(1, 'or', [simpliedite, res[i]], idx)
-            idx += 1
-        test = simpliedite.toPySmt(self.sort_map, {})
+            simpliedite = self.createUifExp(1, 'or', [simpliedite, res[i]])
         # 返回f1\/f2...\/fn 和 [f1,f2,...,fn]
         return simpliedite, res
 
