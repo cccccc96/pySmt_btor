@@ -1,7 +1,7 @@
 from itebdd.IteBdd import *
 
 
-from btor2_parser.btor2 import *
+from btor2 import *
 
 
 class IteBddMgr():
@@ -46,14 +46,17 @@ class IteBddMgr():
         f.get_inner_ites(inner_ite_list, [])
         for item in inner_ite_list:
             self._supports.append(item)
+        if reverse==True:
+            self._supports.reverse()
+        return self._supports
     
     def getSupport(self, level:int):
         return self._supports[level]
     
     def bddKey(self, f:expType, e:expType=None):
         if e is None:
-            return str(f.id)
-        return str(f.id)+'--'+str(e.id)
+            return str(f)
+        return str(f)+str(e)
 
     def checkTerminal(self,f:expType):
         
@@ -100,6 +103,7 @@ class IteBddMgr():
             f (expType): 传入一个大的exp,可能是任意类型的exp
         """
 
+        print(1)
         # terminal 情况，没有内部的ite节点/
         if self.checkTerminal(f) is not None:
             res = self.checkTerminal(f)
@@ -110,7 +114,7 @@ class IteBddMgr():
         
         # 获取top condition
         condition = self.getLevel(f)
-
+        print(condition)
 
         k = self.bddKey(f, condition)
 
@@ -120,7 +124,6 @@ class IteBddMgr():
 
         # recursion
         fl = self.getLeftCofactor(f, condition)
-
         t = self.build(fl)
 
         fr = self.getRightCofactor(f,condition)

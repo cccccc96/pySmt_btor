@@ -1,7 +1,3 @@
-from btor2_parser.btor2parser import *
-
-
-
 def next_var(v):
     """Returns the 'next' of the given variable"""
     return Symbol("next(%s)" % v.symbol_name(), v.symbol_type())

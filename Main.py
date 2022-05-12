@@ -1,7 +1,7 @@
 from MC_Util.invbmc import *
 from MC_Util.sim import *
-from btor2_parser import btor2parser
-from ste_parser import  steparser
+import btor2parser
+from ste_parser import steparser
 from MC_Util.bmc import *
 from itebdd.IteBddMgr import *
 
@@ -128,7 +128,7 @@ def test_simplified_ite():
     print('---------------------------')
     res3,list = prot.simplifyIte(pre)
     print('第三次化简')
-    print(serialize(simplify(res3.toPySmt(prot.sort_map, {}))).replace(' ? 1_1 : 0_1',''))
+    # print(serialize(simplify(res3.toPySmt(prot.sort_map, {}))).replace(' ? 1_1 : 0_1',''))
 
 
 def test_assert():
@@ -159,11 +159,7 @@ def get_f(i):
     pre = list[1].preExp(prot.sort_map, stm_map)
 
     res2,list = prot.simplifyIte(pre)
-    print('第二次化简')
-    print(serialize(simplify(res2.toPySmt(prot.sort_map, {}))).replace(' ? 1_1 : 0_1',''))
 
-    print('---------------------------')
-    print('调用preexp:')
     pre2 = list[28].preExp(prot.sort_map, stm_map)
     if(i==1):
         return prot,ite_exp
@@ -175,18 +171,18 @@ def get_f(i):
 
 
 def test_ite_bdd():
-    prot,ite_exp = get_f(3)
+    prot,ite_exp = get_f(2)
 
     bm = IteBddMgr(prot)
-    bm.setSupport(ite_exp)
+    support=bm.setSupport(ite_exp)
     res = bm.build(ite_exp)
-    print(res.dfs())
-    print(1)
-    
+    print('ite-condition 数量：',len(support))
+    print('现有分支:',res.dfs())
+
 
 
 if __name__ == "__main__":
     # test_simplified_ite()
-    test_ite_bdd()
+    test_simplified_ite()
     
 
