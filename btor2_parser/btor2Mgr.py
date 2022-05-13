@@ -1,8 +1,8 @@
 from btor2_parser import btor2
 from pysmt.shortcuts import *
 from MC_Util.PySmtUtil import *
+from typing import List
 
-idx=10000
 
 class Btor2Mgr():
     ref = 0
@@ -26,7 +26,7 @@ class Btor2Mgr():
             if isinstance(line[0], btor2.nodeType):
                 self.node_map[line[0].nodeID.id] = line[0]
 
-        ref = len(self.node_map)
+        Btor2Mgr.ref = len(self.node_map)
         '''
         老师要求的exp和statement
         '''
@@ -131,12 +131,35 @@ class Btor2Mgr():
         self.exp_map[Btor2Mgr.ref] = btor2.IteExp(sortId,b,e1,e2,Btor2Mgr.ref,flag)
         return self.exp_map[Btor2Mgr.ref]
 
-    def createStoteExp(self, sortId, mem, adre, content):
+    def createStoreExp(self, sortId, mem, adre, content):
         Btor2Mgr.ref += 1
         self.exp_map[Btor2Mgr.ref] = btor2.StoreExp(sortId, mem, adre,content, Btor2Mgr.ref)
         return self.exp_map[Btor2Mgr.ref]
 
-    def simplifyIte(self, ite_exp):
+    def createAndExpFromArray(self, expList:List):
+        sortId = expList[0].sortId
+        res = expList[0]
+        for i in range(1,len(expList)):
+            res = self.createUifExp(sortId,'and',[res,expList[i]])
+        return res
+
+    def createOrExpFromArray(self, expList:List):
+        sortId = expList[0].sortId
+        res = expList[0]
+        for i in range(1,len(expList)):
+            res = self.createUifExp(sortId,'or',[res,expList[i]])
+        return res
+
+    def createNotExp(self, exp):
+        sortId = exp.sortId
+        return self.createUifExp(sortId,'not',[exp])
+
+    def simplifyIte_Violent(self, ite_exp):
+        """暴力枚举所有itecondition 情况（已弃用）
+
+        :param ite_exp:
+        :return:
+        """
         def _f(ite_exp, innner_ite_list, b_map, res, i):
             """
            遍历2^n种情况
@@ -148,7 +171,8 @@ class Btor2Mgr():
            :return:
            """
             if i == len(innner_ite_list):
-                simplified_ite_exp = ite_exp.simplified_ite({}, b_map)
+                simplified_ite_exp = ite_exp.simplified_ite( b_map)
+                print(simplified_ite_exp)
                 condition = None
                 # 计算一下当前情况的 condition ， 0代表某个inner_ite的b取非，1代表某个inner_ite的b取正
                 for i in b_map:
@@ -178,6 +202,7 @@ class Btor2Mgr():
         inner_ite_list = []
         ite_exp.get_inner_ites(inner_ite_list, [])
         print('inner')
+        inner_ite_list.sort()
         for i in inner_ite_list:
             print(i, self.exp_map[i])
         inner_ite_list.sort()
@@ -206,6 +231,14 @@ class Btor2Mgr():
             simpliedite = self.createUifExp(1, 'or', [simpliedite, res[i]])
         # 返回f1\/f2...\/fn 和 [f1,f2,...,fn]
         return simpliedite, res
+
+    def preExp(self, exp):
+        stm_map = {}
+        for next in self.nextStatement_map.values():
+            key = next.nid
+            value = next.exp
+            stm_map[key] = value
+        return exp.preExp(self.sort_map, stm_map)
 
     def ToPySmtFormat(self, exp):
         return exp.toPySmt(self.sort_map,{})

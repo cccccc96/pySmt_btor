@@ -1,5 +1,9 @@
 from enum import Enum
+from typing import List
+from pysmt.shortcuts import *
+import logging
 
+logging.basicConfig(level=logging.INFO)
 
 # class BDD_EDGE_FLAG(Enum):
 #     BDD_POS_EDGE = 0
@@ -45,12 +49,39 @@ class IteBddNode():
     def getRefCount(self):
         return self.getBddNodeInt().getRefCount()
 
-    def dfs(self):
+    def dfs(self,conditonList:List,resList:List):
         if self.terminal is not None:
-            return 1
-        res = self.left.dfs() + self.right.dfs()
-        return res
+            conditonList.append(self.terminal)
+            f = IteBddNode.mgr.prot.createAndExpFromArray(conditonList)
+            resList.append(f)
+            conditonList.pop()
+            return
 
+        conditonList.append(self.condition)
+        self.left.dfs(conditonList,resList)
+        conditonList.pop()
+
+        conditonList.append(IteBddNode.mgr.prot.createNotExp(self.condition))
+        self.right.dfs(conditonList,resList)
+        conditonList.pop()
+
+    def dfs_without_zero(self,conditonList:List,resList:List):
+        if self.terminal is not None:
+            conditonList.append(self.terminal)
+            f = IteBddNode.mgr.prot.createAndExpFromArray(conditonList)
+            solver = Solver()
+            if is_sat(IteBddNode.mgr.prot.ToPySmtFormat(self.terminal).Equals(BV(1, 1))):
+                resList.append(f)
+            conditonList.pop()
+            return
+
+        conditonList.append(self.condition)
+        self.left.dfs_without_zero(conditonList,resList)
+        conditonList.pop()
+
+        conditonList.append(IteBddNode.mgr.prot.createNotExp(self.condition))
+        self.right.dfs_without_zero(conditonList,resList)
+        conditonList.pop()
     
     def __str__(self):
         if self.terminal is not None:
@@ -62,44 +93,3 @@ class IteBddNode():
         return str(self)==str(other)
 
 
-class IteBddNodeInt():
-
- 
-
-    def __init__(self, l: IteBddNode, r: IteBddNode, level: int, refCount: int = 0, visited: bool = False):
-        """不包含正负信息的BDD节点
-
-        Args:
-            l (int): 左节点
-            r (int): 右节点
-            level (int): level，变量顺序
-            refCount (int, optional): ref. Defaults to 0.
-            visited (int, optional): visited. Defaults to false.
-        """
-        self._left = l
-        self._right = r
-        self._level = level
-        self._refCount = refCount
-        self._visited = visited
-
-
-    def getLeft(self) -> IteBddNode:
-        return self._left
-
-    def getRight(self) -> IteBddNode:
-        return self._right
-
-    def getLevel(self) -> int:
-        return self._level
-
-    def getRefCount(self) -> int:
-        return self._refCount
-
-    def isVisited(self) -> bool:
-        return self._visited
-
-    def incRefCount(self):
-        self._refCount += 1
-
-    def decRefCount(self):
-        self._refCount -= 1

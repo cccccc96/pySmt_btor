@@ -5,7 +5,7 @@ from btor2_parser.btor2 import *
 
 
 class IteBddMgr():
-    def __init__(self, prot:Btor2):
+    def __init__(self, prot):
         self._uniqueTable={}
         self._computedTable = {}
         self._supports = [] # IteBddNode list
@@ -36,6 +36,7 @@ class IteBddMgr():
         return self._uniqueTable[key] 
     
     def setSupport(self, f:expType, reverse=False):
+        self._supports.clear()
         """传入f,计算support,support为consitions和顺序 
 
         Args:
@@ -43,7 +44,8 @@ class IteBddMgr():
             reverse: 顺序反转_
         """
         inner_ite_list = []
-        f.get_inner_ites(inner_ite_list, [])
+        f.get_inner_ites(inner_ite_list)
+        print(inner_ite_list)
         for item in inner_ite_list:
             self._supports.append(item)
         if reverse==True:
@@ -62,7 +64,7 @@ class IteBddMgr():
         
         # 判断内部是否有ite节点
         inner_ite_list = []
-        f.get_inner_ites(inner_ite_list, [])
+        f.get_inner_ites(inner_ite_list)
         if len(inner_ite_list)==0:
             return IteBddNode(f) 
         else:
@@ -78,7 +80,7 @@ class IteBddMgr():
             condition: condition
         """
         inner_ite_list = []
-        f.get_inner_ites(inner_ite_list, [])
+        f.get_inner_ites(inner_ite_list)
         for item in self._supports:
             if item in inner_ite_list:
                 return self.prot.exp_map[item]
@@ -86,12 +88,12 @@ class IteBddMgr():
     def getLeftCofactor(self,f:expType,condition:expType):
         b_map = {}
         b_map[int(condition.id)] = 0
-        return f.simplified_ite({}, b_map)
+        return f.simplified_ite( b_map)
 
     def getRightCofactor(self,f:expType,condition:expType):
         b_map = {}
         b_map[int(condition.id)] = 1
-        return f.simplified_ite({}, b_map)
+        return f.simplified_ite( b_map)
 
     def compare(self, a:expType, b:expType):
         return str(a)==str(b)
@@ -103,7 +105,6 @@ class IteBddMgr():
             f (expType): 传入一个大的exp,可能是任意类型的exp
         """
 
-        print(1)
         # terminal 情况，没有内部的ite节点/
         if self.checkTerminal(f) is not None:
             res = self.checkTerminal(f)
@@ -114,7 +115,6 @@ class IteBddMgr():
         
         # 获取top condition
         condition = self.getLevel(f)
-        print(condition)
 
         k = self.bddKey(f, condition)
 
@@ -139,10 +139,35 @@ class IteBddMgr():
 
         return res
 
+    def generateExpListOfAllCondition(self,f:IteBddNode):
+        """获取所有情况，返回一个数组
 
+        :param f: IteBddNode
+        :return:
+        """
+        resList = []
+        f.dfs([],resList)
+        return resList
 
+    def generateExpListOfAllConditionWithoutZero(self,f:IteBddNode):
+        """获取所有情况，返回一个数组
 
+        :param f: IteBddNode
+        :return:
+        """
 
+        resList = []
+        f.dfs_without_zero([],resList)
+        return resList
+
+    def generateExpOfAllCondition(self,f:IteBddNode):
+        """获取所有情况，返回一个exp
+
+        :param f: IteBddNode
+        :return:
+        """
+        resList = self.generateExpListOfAllCondition(f)
+        return self.prot.createOrExpFromArray(resList)
 
 
         

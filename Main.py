@@ -102,9 +102,13 @@ def test_simplified_ite():
         key = next.nid
         value = next.exp
         stm_map[key] = value
+
+    print('test',prot.exp_map[5])
+
     print("原始bad性质： " + str(bad.nExp))
     ite_exp = bad.nExp.preExp(prot.sort_map, stm_map)
     print("调用preexp后性质:  " + str(ite_exp))
+    print(ite_exp)
     print('---------------------------')
     res1,list = prot.simplifyIte(ite_exp)
     print('第一次化简')
@@ -114,9 +118,12 @@ def test_simplified_ite():
     print('调用preexp:')
     pre = list[1].preExp(prot.sort_map, stm_map)
     print('preexp的结果:')
+    print(pre)
     print(serialize(simplify(pre.toPySmt(prot.sort_map, {}))))
     print('---------------------------')
     res2,list = prot.simplifyIte(pre)
+    print(res2)
+    print('test', prot.exp_map[5])
     print('第二次化简')
     print(res2)
     print(serialize(simplify(res2.toPySmt(prot.sort_map, {}))).replace(' ? 1_1 : 0_1',''))
@@ -168,22 +175,36 @@ def get_f(i):
         return prot,pre
     elif(i==3):
         return prot,pre2
-    
 
 
 def test_ite_bdd():
-    prot,ite_exp = get_f(2)
-
+    prot = btor2parser.parse_file("case/memory.btor2")
     bm = IteBddMgr(prot)
-    support=bm.setSupport(ite_exp)
-    res = bm.build(ite_exp)
+    bad = prot.prop_map[122].nExp
+
+    f = prot.preExp(bad)
+    support=bm.setSupport(f)
+    split_ite_bddNode1 = bm.build(f)
+    res1 = bm.generateExpListOfAllCondition(split_ite_bddNode1)
+    res1_without_zero = bm.generateExpListOfAllConditionWithoutZero(split_ite_bddNode1)
+    print('ite-condition 数量：', len(support))
+    print(len(res1),res1)
+    print(len(res1_without_zero), res1_without_zero)
+
+    f = prot.preExp(res1[1])
+    print(f)
+    support = bm.setSupport(f)
+    split_ite_bddNode2 = bm.build(f)
     print('ite-condition 数量：',len(support))
-    print('现有分支:',res.dfs())
+    res2 = bm.generateExpListOfAllCondition(split_ite_bddNode2)
+    res2_without_zero = bm.generateExpListOfAllConditionWithoutZero(split_ite_bddNode2)
+    print(len(res2),res2)
+    print(len(res2_without_zero),res2_without_zero)
 
 
 
 if __name__ == "__main__":
     # test_simplified_ite()
-    test_simplified_ite()
+    test_ite_bdd()
     
 
