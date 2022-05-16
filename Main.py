@@ -4,6 +4,7 @@ from btor2_parser import btor2parser
 from ste_parser import steparser
 from MC_Util.bmc import *
 from itebdd.IteBddMgr import *
+from pysmt.fnode import FNode
 
 idx=-10
 
@@ -178,9 +179,9 @@ def get_f(i):
 
 
 def test_ite_bdd():
-    prot = btor2parser.parse_file("case/memory.btor2")
+    prot = btor2parser.parse_file("case/btor2_BM/ret0024_dir.btor2")
     bm = IteBddMgr(prot)
-    bad = prot.prop_map[122].nExp
+    bad = prot.prop_map[80].nExp
 
     f = prot.preExp(bad)
     support=bm.setSupport(f)
@@ -191,7 +192,7 @@ def test_ite_bdd():
     print(len(res1),res1)
     print(len(res1_without_zero), res1_without_zero)
 
-    f = prot.preExp(res1[1])
+    f = prot.preExp(bm.generateExpOfAllCondition(split_ite_bddNode1))
     print(f)
     support = bm.setSupport(f)
     split_ite_bddNode2 = bm.build(f)
@@ -200,6 +201,16 @@ def test_ite_bdd():
     res2_without_zero = bm.generateExpListOfAllConditionWithoutZero(split_ite_bddNode2)
     print(len(res2),res2)
     print(len(res2_without_zero),res2_without_zero)
+
+    f = prot.preExp(bm.generateExpOfAllCondition(split_ite_bddNode2))
+    print(f)
+    support = bm.setSupport(f)
+    split_ite_bddNode3 = bm.build(f)
+    print('ite-condition 数量：',len(support))
+    res3 = bm.generateExpListOfAllCondition(split_ite_bddNode3)
+    res3_without_zero = bm.generateExpListOfAllConditionWithoutZero(split_ite_bddNode3)
+    print(len(res3),res3)
+    print(len(res3_without_zero),res3_without_zero)
 
 
 

@@ -111,6 +111,11 @@ class Btor2Mgr():
             res[key] = value
         return res
 
+    def createConstExp(self, val):
+        Btor2Mgr.ref += 1
+        self.exp_map[Btor2Mgr.ref]= btor2.ConstExp(1,val,Btor2Mgr.ref)
+        return self.exp_map[Btor2Mgr.ref]
+
     def createUifExp(self, sortId, op, es):
         Btor2Mgr.ref+=1
         self.exp_map[Btor2Mgr.ref]=btor2.UifExp(sortId, op, es, Btor2Mgr.ref)
@@ -126,7 +131,7 @@ class Btor2Mgr():
         self.exp_map[Btor2Mgr.ref] = btor2.ReadExp(sortId, mem,adr,Btor2Mgr.ref)
         return self.exp_map[Btor2Mgr.ref]
 
-    def createIteExp(self, sortId,b,e1,e2,flag):
+    def createIteExp(self, sortId,b,e1,e2,flag=None):
         Btor2Mgr.ref += 1
         self.exp_map[Btor2Mgr.ref] = btor2.IteExp(sortId,b,e1,e2,Btor2Mgr.ref,flag)
         return self.exp_map[Btor2Mgr.ref]

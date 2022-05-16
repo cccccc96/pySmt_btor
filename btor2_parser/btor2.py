@@ -863,18 +863,26 @@ class IteExp(expType):
         return expType.btor2Mgr.createIteExp(self.sortId, b, e1, e2)
 
     def simplified_ite(self, b_map):
-        if self.b.id not in b_map:
-            global idx
+        flag = None
+        for i in b_map:
+            if str(expType.btor2Mgr.exp_map[i])==str(self.b):
+                flag=b_map[i]
+        if flag is None:
+            b = self.b.simplified_ite(b_map)
             e1 = self.e1.simplified_ite(b_map)
             e2 = self.e2.simplified_ite(b_map)
-            res = expType.btor2Mgr.createIteExp(self.sortId, self.b, e1, e2, self.flag)
+            if str(simplify(expType.btor2Mgr.ToPySmtFormat(b)))=='0_1':
+                res = e2
+            elif str(simplify(expType.btor2Mgr.ToPySmtFormat(b)))=='1_1':
+                res = e1
+            else:
+                res = expType.btor2Mgr.createIteExp(self.sortId, b, e1, e2, self.flag)
             return res
-        b = b_map[self.b.id]
         e1 = self.e1.simplified_ite(b_map)
         e2 = self.e2.simplified_ite(b_map)
-        if b == 1:
+        if flag == 1:
             return e1
-        elif b == 0:
+        elif flag == 0:
             return e2
 
     def get_inner_ites(self, ite_list):

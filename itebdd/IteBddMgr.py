@@ -45,7 +45,6 @@ class IteBddMgr():
         """
         inner_ite_list = []
         f.get_inner_ites(inner_ite_list)
-        print(inner_ite_list)
         for item in inner_ite_list:
             self._supports.append(item)
         if reverse==True:
@@ -65,6 +64,10 @@ class IteBddMgr():
         # 判断内部是否有ite节点
         inner_ite_list = []
         f.get_inner_ites(inner_ite_list)
+
+        if str(simplify(self.prot.ToPySmtFormat(f)))=='0_1':
+            return IteBddNode(self.prot.createConstExp('0'))
+
         if len(inner_ite_list)==0:
             return IteBddNode(f) 
         else:
@@ -81,9 +84,17 @@ class IteBddMgr():
         """
         inner_ite_list = []
         f.get_inner_ites(inner_ite_list)
-        for item in self._supports:
-            if item in inner_ite_list:
-                return self.prot.exp_map[item]
+        for i in inner_ite_list:
+            print(self.prot.exp_map[i])
+        print(len(inner_ite_list))
+        for i in self._supports:
+            for j in inner_ite_list:
+                if str(self.prot.exp_map[i]) == str(self.prot.exp_map[j]):
+                    return self.prot.exp_map[j]
+
+
+        return self.prot.exp_map[inner_ite_list[0]]
+
 
     def getLeftCofactor(self,f:expType,condition:expType):
         b_map = {}
@@ -115,6 +126,9 @@ class IteBddMgr():
         
         # 获取top condition
         condition = self.getLevel(f)
+        if str(condition) == ' redor(1) ':
+            a = (simplify(self.prot.ToPySmtFormat(condition)))
+
 
         k = self.bddKey(f, condition)
 
@@ -166,7 +180,7 @@ class IteBddMgr():
         :param f: IteBddNode
         :return:
         """
-        resList = self.generateExpListOfAllCondition(f)
+        resList = self.generateExpListOfAllConditionWithoutZero(f)
         return self.prot.createOrExpFromArray(resList)
 
 

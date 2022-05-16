@@ -5,9 +5,6 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-# class BDD_EDGE_FLAG(Enum):
-#     BDD_POS_EDGE = 0
-#     BDD_NEG_EDGE = 1
 
 
 class IteBddNode():
@@ -69,8 +66,7 @@ class IteBddNode():
         if self.terminal is not None:
             conditonList.append(self.terminal)
             f = IteBddNode.mgr.prot.createAndExpFromArray(conditonList)
-            solver = Solver()
-            if is_sat(IteBddNode.mgr.prot.ToPySmtFormat(self.terminal).Equals(BV(1, 1))):
+            if str(simplify(IteBddNode.mgr.prot.ToPySmtFormat(self.terminal))) != '0_1':
                 resList.append(f)
             conditonList.pop()
             return
