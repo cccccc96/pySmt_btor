@@ -26,7 +26,6 @@ class IteBddMgr():
             condition (_type_): level
 
         Returns:
-            Null/bddNodeInt
         """
         n = None
         key = str(l)+str(r)+str(condition)
@@ -84,9 +83,10 @@ class IteBddMgr():
         """
         inner_ite_list = []
         f.get_inner_ites(inner_ite_list)
-        for i in inner_ite_list:
-            print(self.prot.exp_map[i])
-        print(len(inner_ite_list))
+        # for i in inner_ite_list:
+        #     print(self.prot.exp_map[i])
+        # print(len(inner_ite_list))
+        # print('-------------')
         for i in self._supports:
             for j in inner_ite_list:
                 if str(self.prot.exp_map[i]) == str(self.prot.exp_map[j]):
@@ -116,7 +116,7 @@ class IteBddMgr():
             f (expType): 传入一个大的exp,可能是任意类型的exp
         """
 
-        # terminal 情况，没有内部的ite节点/
+        # terminal 情况，没有内部的ite节点/已经计算过了
         if self.checkTerminal(f) is not None:
             res = self.checkTerminal(f)
             k = self.bddKey(f)
@@ -126,8 +126,6 @@ class IteBddMgr():
         
         # 获取top condition
         condition = self.getLevel(f)
-        if str(condition) == ' redor(1) ':
-            a = (simplify(self.prot.ToPySmtFormat(condition)))
 
 
         k = self.bddKey(f, condition)

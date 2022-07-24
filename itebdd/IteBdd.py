@@ -25,26 +25,6 @@ class IteBddNode():
             self.condition = args[2]
 
 
-    def getBddNodeInt(self):
-        return self.node[0]
-
-    def getLeft(self):
-        return self.getBddNodeInt().getLeft()
-
-    def getRight(self):
-        return self.getBddNodeInt().getRight()
-
-    def getLeftCofactor(self):
-        pass
-
-    def getRightCofactor(self):
-        pass
-
-    def getLevel(self):
-        return self.getBddNodeInt().getLevel()
-
-    def getRefCount(self):
-        return self.getBddNodeInt().getRefCount()
 
     def dfs(self,conditonList:List,resList:List):
         if self.terminal is not None:

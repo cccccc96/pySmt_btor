@@ -52,9 +52,14 @@ def test_preExp2():
 
 
 def test_toTS_PySmtFormat():
-    prot = btor2parser.parse_file("case/memory_wrong.btor2")
+    prot = btor2parser.parse_file("case/memory.btor2")
     trans, constraints, badstates = prot.toTS_PySmtFormat()
     update = prot.get_update()
+    exp_map = prot.exp_map
+    nextStatement_map = prot.nextStatement_map
+    for k,v in nextStatement_map.items():
+        print("%12s := %s" % (exp_map[v.nid],str(v.exp)))
+
     return
 
 
@@ -178,7 +183,7 @@ def get_f(i):
         return prot,pre2
 
 
-def test_ite_bdd():
+def test_ite_bdd2():
     prot = btor2parser.parse_file("case/btor2_BM/ret0024_dir.btor2")
     bm = IteBddMgr(prot)
     bad = prot.prop_map[80].nExp
@@ -207,15 +212,77 @@ def test_ite_bdd():
     support = bm.setSupport(f)
     split_ite_bddNode3 = bm.build(f)
     print('ite-condition 数量：',len(support))
+    for i in support:
+        print(prot.exp_map[i])
     res3 = bm.generateExpListOfAllCondition(split_ite_bddNode3)
     res3_without_zero = bm.generateExpListOfAllConditionWithoutZero(split_ite_bddNode3)
     print(len(res3),res3)
     print(len(res3_without_zero),res3_without_zero)
 
+def test_ite_bdd():
+    # prot = btor2parser.parse_file("case/btor2_BM/ret0024_dir.btor2")
+    prot = btor2parser.parse_file("case/memory.btor2")
+    bm = IteBddMgr(prot)
+    # bad = prot.prop_map[80].nExp
+    bad = prot.prop_map[122].nExp
+    # bad = prot.prop_map[353].nExp
+
+    print('#1:')
+    f = prot.preExp(bad)
+    print(f)
+    support=bm.setSupport(f)
+    split_ite_bddNode1 = bm.build(f)
+    res1 = bm.generateExpListOfAllCondition(split_ite_bddNode1)
+    res1_without_zero = bm.generateExpListOfAllConditionWithoutZero(split_ite_bddNode1)
+    print('ite-condition 数量：', len(support))
+    # print(len(res1),res1)
+    print('分解',len(res1_without_zero), res1_without_zero)
+
+    print('\n#2:')
+    f = prot.preExp(bm.generateExpOfAllCondition(split_ite_bddNode1))
+    print(f)
+    support = bm.setSupport(f)
+    for i in support:
+        print(prot.exp_map[i])
+    split_ite_bddNode2 = bm.build(f)
+    print('ite-condition 数量：',len(support))
+    res2 = bm.generateExpListOfAllCondition(split_ite_bddNode2)
+    res2_without_zero = bm.generateExpListOfAllConditionWithoutZero(split_ite_bddNode2)
+    # print(len(res2),res2)
+    print('分解',len(res2_without_zero))
+    for item in res2_without_zero:
+        print(item)
+
+    print('\n#3:')
+    f = prot.preExp(bm.generateExpOfAllCondition(split_ite_bddNode2))
+    print(f)
+    support = bm.setSupport(f)
+    split_ite_bddNode3 = bm.build(f)
+    print('ite-condition 数量：',len(support))
+    res3 = bm.generateExpListOfAllCondition(split_ite_bddNode3)
+    res3_without_zero = bm.generateExpListOfAllConditionWithoutZero(split_ite_bddNode3)
+    # print(len(res3),res3)
+    print('分解',len(res3_without_zero),res3_without_zero)
+    print(bm.generateExpOfAllCondition(split_ite_bddNode3))
+
+    print('\n#4:')
+    f = prot.preExp(bm.generateExpOfAllCondition(split_ite_bddNode3))
+    # print(f)
+    support = bm.setSupport(f)
+    print('ite-condition 数量：', len(support))
+    split_ite_bddNode4 = bm.build(f)
+    print('ite-condition 数量：',len(support))
+    res4 = bm.generateExpListOfAllCondition(split_ite_bddNode4)
+    res4_without_zero = bm.generateExpListOfAllConditionWithoutZero(split_ite_bddNode4)
+    print('分解',len(res4_without_zero))
+
+
+
+
 
 
 if __name__ == "__main__":
     # test_simplified_ite()
-    test_ite_bdd()
+    test_toTS_PySmtFormat()
     
 

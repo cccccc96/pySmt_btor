@@ -886,12 +886,13 @@ class IteExp(expType):
             return e2
 
     def get_inner_ites(self, ite_list):
-        if self.b.id not in ite_list:
-            ite_list.append(self.b.id)
         self.b.get_inner_ites(ite_list)
         self.e1.get_inner_ites(ite_list)
         self.e2.get_inner_ites(ite_list)
-
+        for i in ite_list:
+            if str(expType.btor2Mgr.exp_map[i])==str(self.b):
+                return
+        ite_list.append(self.b.id)
 
 class StoreExp(expType):
     def __init__(self, sortId, mem, adre, content, id):
