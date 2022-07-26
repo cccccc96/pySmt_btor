@@ -1,28 +1,10 @@
+from pysmt.shortcuts import *
 class TrajForm:
-    pass
-
-class isVar(TrajForm):
-    """
-        四元组(node,value, fromTime , toTime)
-    """
-
-    def __init__(self, node, value, fromTime, toTime):
-        self.node = node
-        self.value = value
+    def __init__(self, formula, fromTime, toTime):
+        self.formula = formula
         self.fromTime = fromTime
         self.toTime = toTime
 
-class guard(TrajForm):
-    """
-        五元组(guard,node,value, fromTime , toTime)
-    """
-
-    def __init__(self,guard, node, value, fromTime, toTime):
-        self.guard = guard
-        self.node = node
-        self.value = value
-        self.fromTime = fromTime
-        self.toTime = toTime
 
 class TrajAssertions:
     def __init__(self):
@@ -47,18 +29,27 @@ class TrajAssertions:
                     res.append((ant.fromTime,ant.toTime))
         return res
 
+    def getAntFromTo(self, fromTime, toTime):
+        res = []
+        for ant in self.antList:
+            if ant.fromTime == fromTime and ant.toTime == toTime:
+                res.append(ant.formula)
+        return And(res)
+
     def getAntListFromTo(self, fromTime, toTime):
         # 根据fromTime 和 toTime 获取对应的AntList列表
         res = []
         for ant in self.antList:
             if ant.fromTime == fromTime and ant.toTime == toTime:
-                res.append(ant)
+                res.append(ant.formula)
         return res
 
-    def getConsListFromTo(self, fromTime, toTime):
+    def getConsFromTo(self, fromTime, toTime):
         # 根据fromTime 和 toTime 获取对应的ConsList列表
         res = []
         for cons in self.consList:
             if cons.fromTime == fromTime and cons.toTime == toTime:
-                res.append(cons)
-        return res
+                res.append(cons.formula)
+        if len(res)==0:
+            return TRUE()
+        return And(res)

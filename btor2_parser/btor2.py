@@ -968,7 +968,7 @@ class Statement():
         self.flag = flag
 
     def __str__(self):
-        return "(next %s : %s)" % (str(self.nid), str(self.exp))
+        return "(next %s : %s)" % (str(expType.btor2Mgr.exp_map[self.nid]), str(self.exp))
 
     def toPySmt(self, exp_map, sort_map, visited):
         if self.flag is None:

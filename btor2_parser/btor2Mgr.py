@@ -70,6 +70,14 @@ class Btor2Mgr():
             if isinstance(node, btor2.PropertyKind):
                 self.prop_map[node.nodeID.id] = btor2.Property(node.kind, self.exp_map[node.nid], node.nodeID.id)
 
+    def get_VarExps_in_SymbolList(self):
+        res = []
+        for varExp in self.var_map.values():
+            if isinstance(varExp,btor2.VarExp):
+                res.append(varExp.toPySmt(self.sort_map, {}))
+        return res
+
+
     def toTS_PySmtFormat(self):
 
         vars = []

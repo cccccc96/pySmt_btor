@@ -5,6 +5,7 @@ from ste_parser import steparser
 from MC_Util.bmc import *
 from itebdd.IteBddMgr import *
 from pysmt.fnode import FNode
+from pysmt.oracles import get_logic
 
 idx=-10
 
