@@ -1,0 +1,7 @@
+read_verilog -formal memory.sv
+prep -top TOP
+flatten
+memory -nomap
+hierarchy -check
+setundef -undriven -init -expose
+write_btor  -s memory22_simple.btor2
