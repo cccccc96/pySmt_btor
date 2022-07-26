@@ -17,11 +17,7 @@ always @(posedge clk) begin
             mem[i] <= {WIDTH{1'b0}};
         end
     end else if(in_wr) begin
-	if(in_wr_addr<(DEPTH/2)) begin
 	    mem[in_wr_addr] <= in_data;
- 	end else begin
-	    mem[in_wr_addr] <= {in_data[WIDTH/2-1:0],in_data[WIDTH-1: WIDTH/2]};
-	end
     end
 end
 

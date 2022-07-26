@@ -73,7 +73,7 @@ class Btor2Mgr():
     def get_VarExps_in_SymbolList(self):
         res = []
         for varExp in self.var_map.values():
-            if isinstance(varExp,btor2.VarExp):
+            if isinstance(varExp,btor2.VarExp) and varExp.name=='mem':
                 res.append(varExp.toPySmt(self.sort_map, {}))
         return res
 
@@ -98,8 +98,8 @@ class Btor2Mgr():
                 constraints.append(prop.toPySmt(self.sort_map, {}))
             elif prop.kind is btor2.PropertyEnum.bad:
                 badstates.append(prop.toPySmt(self.sort_map, {}))
-
-        # return TransitionSystem(vars, And(inits), nexts[7]), constraints, badstates
+        if len(badstates)==0:
+            return TransitionSystem(vars, And(inits), And(nexts)), constraints, badstates
         return TransitionSystem(vars, And(inits), And(nexts)), constraints, badstates[0]
 
     def get_var_from_id(self, id):
