@@ -1,0 +1,7 @@
+read_verilog -formal test.sv
+prep -top rbFIFO
+flatten
+memory -nomap
+hierarchy -check
+setundef -undriven -init -expose
+write_btor  -s test.btor2
